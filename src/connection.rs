@@ -5,7 +5,7 @@ use url::Url;
 // use tokio::time::{sleep, Duration};
 use futures_util::StreamExt;
 use anyhow::{Result, Error};
-// use anyhow::bail;
+use anyhow::bail;
 use tokio::sync::Mutex;
 // use tokio::select;
 use std::sync::{Arc, RwLock};
@@ -45,7 +45,7 @@ impl BinanceSpotOrderBook {
                     let res = connect_async(url).await;
                     let mut stream = match res{
                         Ok((stream, _)) => stream,
-                        Err(_) => continue,
+                        Err(_) => bail!("connect_async url error"),
                     };
                     println!(" Connected to wss://Depth ");
                     let snapshot: BinanceSpotOrderBookSnapshot = reqwest::get(REST)
@@ -75,23 +75,22 @@ impl BinanceSpotOrderBook {
                             continue;
                         }
 
-                        println!(" Snapshot is usable ");
-
                         if event.match_snapshot(snapshot.last_update_id) {
                             println!(" Found match snapshot ");
                             let mut orderbook = shared.write().unwrap();
                             orderbook.load_snapshot(&snapshot);
                             orderbook.add_event(event);
+
+                            overbook_setup = true;
+                            break;
                         }
-                        overbook_setup = true;
-                        break;
+
                     }
 
                     // let event = buffer.pop_front().unwrap();
 
                     if !overbook_setup {
-                        println!(" Snapshot is not usable ");
-                        continue
+                        bail!("Snapshot is not usable")
                     }
                     {
                         let mut guard  = status.lock().await;
