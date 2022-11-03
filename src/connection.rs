@@ -86,7 +86,7 @@ impl BinanceSpotOrderBook {
             loop {
                 let res : Result<()> = {
                     // Wait for a while to collect event into buffer
-                    sleep(Duration::from_millis(1000)).await;
+                    sleep(Duration::from_millis(2000)).await;
 
                     let snapshot: BinanceSpotOrderBookSnapshot = reqwest::get(REST)
                         .await?
@@ -119,7 +119,7 @@ impl BinanceSpotOrderBook {
                             overbook_setup = true;
                             break;
                         } else {
-                            println!(" Not match ");
+                            println!(" No match ");
                         }
 
                     }
