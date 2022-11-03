@@ -69,26 +69,30 @@ impl BinanceSpotOrderBook {
                         }
                     };
                     println!(" Collected event ");
+                    let mut overbook_setup = false;
+                    while let Some(event) = buffer.pop_front() {
+                        if event.first_update_id > snapshot.last_update_id {
+                            continue;
+                        }
 
-                    let event = buffer.pop_front().unwrap();
+                        println!(" Snapshot is usable ");
 
-                    if event.first_update_id > snapshot.last_update_id {
-                        println!(" Snapshot is not usable ");
-                        continue;
+                        if event.match_snapshot(snapshot.last_update_id) {
+                            println!(" Found match snapshot ");
+                            let mut orderbook = shared.write().unwrap();
+                            orderbook.load_snapshot(&snapshot);
+                            orderbook.add_event(event);
+                        }
+                        overbook_setup = true;
+                        break;
                     }
 
-                    if event.match_snapshot(snapshot.last_update_id) {
-                        println!(" Found match snapshot ");
-                        let mut orderbook = shared.write().unwrap();
-                        orderbook.load_snapshot(&snapshot);
-                        orderbook.add_event(event);
+                    // let event = buffer.pop_front().unwrap();
 
-                    } else{
-                        // No matching event
-                        println!(" No matching event re-getting OrderBookSnapshot ");
+                    if !overbook_setup {
+                        println!(" Snapshot is not usable ");
                         continue
                     }
-
                     {
                         let mut guard  = status.lock().await;
                         *guard = true;
