@@ -86,13 +86,13 @@ impl BinanceSpotOrderBook {
             loop {
                 let res : Result<()> = {
                     // Wait for a while to collect event into buffer
-                    sleep(Duration::from_millis(2000)).await;
+                    sleep(Duration::from_millis(1000)).await;
 
                     let snapshot: BinanceSpotOrderBookSnapshot = reqwest::get(REST)
                         .await?
                         .json()
                         .await?;
-
+                    sleep(Duration::from_millis(500)).await;
                     let mut buffer = VecDeque::<Event>::new();
                     {
                         let mut guard = buffer_clone2.lock().await;
