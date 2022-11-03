@@ -27,24 +27,24 @@ async fn main() -> Result<()> {
     let mut default_break = 0;
 
     loop{
-        // if let Some(snapshot) = order_book.get_snapshot().await{
-        //     println!("snapshot id: {}, ask cnt: {}, bid cnt: {}", snapshot.last_update_id, snapshot.asks.len(), snapshot.bids.len());
-        //
-        //     println!("------ asks ------");
-        //     for ask in snapshot.asks.iter().take(5) {
-        //         println!("price: {}, amount: {}", ask.price, ask.amount);
-        //     }
-        //
-        //     println!("------ bids ------");
-        //     for bid in snapshot.bids.iter().take(5) {
-        //         println!("price: {}, amount: {}", bid.price, bid.amount);
-        //     }
-        //
-        //     if default_break > 20 {
-        //         break;
-        //     }
-        //     default_break += 1;
-        // };
+        if let Some(snapshot) = order_book.get_snapshot().await{
+            println!("snapshot id: {}, ask cnt: {}, bid cnt: {}", snapshot.last_update_id, snapshot.asks.len(), snapshot.bids.len());
+
+            println!("------ asks ------");
+            for ask in snapshot.asks.iter().take(5) {
+                println!("price: {}, amount: {}", ask.price, ask.amount);
+            }
+
+            println!("------ bids ------");
+            for bid in snapshot.bids.iter().take(5) {
+                println!("price: {}, amount: {}", bid.price, bid.amount);
+            }
+
+            if default_break > 20 {
+                break;
+            }
+            default_break += 1;
+        };
 
         sleep(Duration::from_secs(1)).await;
     }

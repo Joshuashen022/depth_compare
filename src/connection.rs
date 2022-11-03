@@ -142,8 +142,8 @@ impl BinanceSpotOrderBook {
                             // Sleep for a while to collect event by another thread
                             sleep(Duration::from_millis(1000)).await;
 
-                            let instance = Instant::now();
-                            let buffer_len = buffer.len();
+                            // let instance = Instant::now();
+                            // let buffer_len = buffer.len();
                             let mut need_new_snap_snot = false;
 
                             // Acquire guard <orderbook>
