@@ -41,6 +41,7 @@ impl BinanceSpotOrderBook {
 
         // Thread to maintain buffer from stream
         tokio::spawn(async move {
+            println!("Start buffer maintain thread");
             loop{
                 let url = Url::parse(DEPTH_URL).expect("Bad URL");
 
@@ -81,6 +82,7 @@ impl BinanceSpotOrderBook {
 
         tokio::spawn(async move{
             let mut default_exit = 0;
+            println!("Start OrderBook thread");
             loop {
                 let res : Result<()> = {
                     let snapshot: BinanceSpotOrderBookSnapshot = reqwest::get(REST)
@@ -89,22 +91,22 @@ impl BinanceSpotOrderBook {
                         .await?;
 
                     // Wait for a while to collect event into buffer
-                    sleep(Duration::from_millis(500)).await;
+                    sleep(Duration::from_millis(1000)).await;
 
                     let mut buffer = VecDeque::<Event>::new();
                     {
                         let mut guard = buffer_clone2.lock().await;
                        buffer.append(&mut (*guard));
                     }
-
-                    println!("Snap shot {}", snapshot.last_update_id);
-
+                    println!("Buffer len {}", buffer.len());
                     let mut overbook_setup = false;
                     while let Some(event) = buffer.pop_front() {
-                        println!("Event {}-{}", event.first_update_id, event.last_update_id);
+                        println!("Snap shot {}, Event {}-{}", snapshot.last_update_id,
+                                 event.first_update_id, event.last_update_id);
 
                         if event.first_update_id > snapshot.last_update_id {
                             println!("All event is not usable, need a new snap shot ");
+                            println!();
                             continue;
                         }
 
@@ -130,7 +132,7 @@ impl BinanceSpotOrderBook {
                                 let mut guard = buffer_clone2.lock().await;
                                 buffer.append(&mut (*guard));// TODO::not sure about time costing
                             }
-
+                            println!("Buffer2 len {}", buffer.len());
                             // Sleep for a while to collect event by another thread
                             sleep(Duration::from_millis(500)).await;
 
@@ -172,7 +174,7 @@ impl BinanceSpotOrderBook {
                 };
 
                 match res {
-                    Ok(_) => println!("Finish all code"),
+                    Ok(_) => (),
                     Err(e) => println!("Error happen when running code: {:?}", e),
                 }
 
