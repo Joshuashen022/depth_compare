@@ -145,15 +145,14 @@ impl BinanceSpotOrderBook {
 
                         let event_id = event.first_update_id;
                         match orderbook.update_snapshot(event){
-                            Ok(()) => (),
+                            Ok(()) => println!("Update success"),
                             Err(_) => {
                                 if event_id < orderbook.id() + 1 {
                                     // Orderook is ahead of event, so we wait for next event
                                     continue
                                 } else {
                                     println!("Update snapshot failed, should {} actually {}",
-                                             orderbook.id() + 1,
-                                             event_id,
+                                             orderbook.id() + 1, event_id,
                                     );
                                     break
                                 }
