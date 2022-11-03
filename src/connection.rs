@@ -99,12 +99,12 @@ impl BinanceSpotOrderBook {
                         while let Ok(msg) = stream.next().await.unwrap(){ //
                             counter += 1;
                             if !msg.is_text() {
-                                println!(" event is far ahead ");
                                 continue
                             }
                             let text = msg.into_text().unwrap();
                             let event: Event = serde_json::from_str(&text)?;
                             if event.first_update_id > snapshot.last_update_id {
+                                println!(" event is far ahead ");
                                 break;
                             }
                             if event.match_snapshot(snapshot.last_update_id) {
