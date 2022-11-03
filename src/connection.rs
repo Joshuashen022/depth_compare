@@ -32,14 +32,14 @@ impl BinanceSpotOrderBook {
         }
     }
 
-    // acquire a order book with "depth method"
+    /// acquire a order book with "depth method"
     pub fn depth(&self) -> Result<()> {
         let shared = self.shared.clone();
         let status = self.status.clone();
         let buffer = Arc::new(Mutex::new(VecDeque::<Event>::new()));
-        let buffer_clone1 = buffer.clone();
 
         // Thread to maintain buffer from stream
+        let buffer_clone1 = buffer.clone();
         tokio::spawn(async move {
             println!("Start buffer maintain thread");
             loop{
@@ -78,8 +78,8 @@ impl BinanceSpotOrderBook {
             }
         });
 
+        // Thread to maintain Order Book
         let buffer_clone2 = buffer.clone();
-
         tokio::spawn(async move{
             let mut default_exit = 0;
             println!("Start OrderBook thread");
@@ -208,11 +208,7 @@ impl BinanceSpotOrderBook {
         Ok(())
     }
 
-    // acquire a order book with "level depth method"
-    pub async fn level_depth(&self){
-
-    }
-
+    /// Get the snapshot of the current Order Book
     pub async fn get_snapshot(&self) -> Option<BinanceSpotOrderBookSnapshot>{
         let mut current_status = false;
 
