@@ -1,0 +1,145 @@
+use std::collections::VecDeque;
+use crate::deep::{Event, BinanceSpotOrderBookSnapshot, Shared};
+use tokio_tungstenite::connect_async;
+use url::Url;
+// use tokio::time::{sleep, Duration};
+use futures_util::StreamExt;
+use anyhow::{Result, Error};
+// use anyhow::bail;
+use tokio::sync::Mutex;
+// use tokio::select;
+use std::sync::{Arc, RwLock};
+use futures_util::future::err;
+// use tokio::spawn;
+
+const DEPTH_URL: &str = "wss://stream.binance.com:9443/ws/bnbbtc@depth@100ms";
+const LEVEL_DEPTH_URL: &str = "wss://stream.binance.com:9443/ws/bnbbtc@depth20@100ms";
+const REST: &str = "https://api.binance.com/api/v3/depth?symbol=BNBBTC&limit=1000";
+const MAX_BUFFER: usize = 5;
+
+pub struct BinanceSpotOrderBook {
+    status: Arc<Mutex<bool>>,
+    shared: Arc<RwLock<Shared>>,
+}
+
+impl BinanceSpotOrderBook {
+
+    pub fn new() -> Self {
+        BinanceSpotOrderBook {
+            status: Arc::new(Mutex::new(false)),
+            shared: Arc::new(RwLock::new(Shared::new()))
+        }
+    }
+
+    // acquire a order book with "depth method"
+    pub fn depth(&self) {
+        let shared = self.shared.clone();
+        let status = self.status.clone();
+        tokio::spawn(async move {
+            loop {
+                let res : Result<()> = {
+                    let url = Url::parse(DEPTH_URL).expect("Bad URL");
+
+                    let res = connect_async(url).await;
+                    let mut stream = match res{
+                        Ok((stream, _)) => stream,
+                        Err(_) => continue,
+                    };
+
+                    let snapshot: BinanceSpotOrderBookSnapshot = reqwest::get(REST)
+                        .await?
+                        .json()
+                        .await?;
+
+                    let mut buffer = VecDeque::new();
+
+                    while let Ok(msg) = stream.next().await.unwrap(){ //
+                        if !msg.is_text() {
+                            continue
+                        }
+                        let text = msg.into_text().unwrap();
+                        let event: Event = serde_json::from_str(&text)?;
+
+                        buffer.push_back(event);
+
+                        if buffer.len() == MAX_BUFFER {
+                            break
+                        }
+                    };
+
+
+                    //
+                    // orderbook.load_snapshot(&snapshot);
+
+                    let event = buffer.pop_front().unwrap();
+
+                    if event.first_update_id > snapshot.last_update_id {
+                        // Snapshot is not usable
+                        continue;
+                    }
+
+                    if event.match_snapshot(snapshot.last_update_id) {
+
+                        let mut orderbook = shared.write().unwrap();
+                        orderbook.load_snapshot(&snapshot);
+                        orderbook.add_event(event);
+
+                    } else{
+                        // No matching event
+                        println!(" No matching event re-getting a event ");
+                        continue
+                    }
+
+                    {
+                        let mut guard  = status.lock().await;
+                        *guard = true;
+                    }
+
+                    while let Ok(msg) = stream.next().await.unwrap(){
+                        if !msg.is_text() {
+                            continue
+                        }
+                        let text = msg.into_text().unwrap();
+                        let event: Event = serde_json::from_str(&text)?;
+                        let mut orderbook = shared.write().unwrap(); // Acquire guard <orderbook>
+
+                        //TODO:: Finish this
+                        orderbook.update_snapshot(event);
+                    };
+                    Ok(())
+                };
+
+            }
+            Ok::<(), Error>(())
+        });
+
+    }
+
+    // acquire a order book with "level depth method"
+    pub async fn level_depth(&self){
+
+    }
+
+    pub async fn get_snapshot(&self) -> Option<BinanceSpotOrderBookSnapshot>{
+        let mut current_status = false;
+
+        {
+            let status = self.status.clone();
+            let status_guard = status.lock().await;
+            current_status = (*status_guard).clone();
+
+        }// Release the guard immediately
+
+
+        if current_status{
+            Some(self.shared.write().unwrap().get_snapshot())
+        } else{
+            None
+        }
+
+    }
+}
+
+
+
+
