@@ -55,6 +55,7 @@ impl BinanceSpotOrderBook {
                     println!(" Connected to https://REST ");
                     let mut buffer = VecDeque::new();
 
+                    // TODO:: start a task to collect Event.
                     while let Ok(msg) = stream.next().await.unwrap(){ //
                         if !msg.is_text() {
                             continue
@@ -68,8 +69,10 @@ impl BinanceSpotOrderBook {
                             break
                         }
                     };
+
                     println!(" Collected event ");
                     let mut overbook_setup = false;
+
                     while let Some(event) = buffer.pop_front() {
                         println!(" Check event ");
                         if event.first_update_id > snapshot.last_update_id {
@@ -108,8 +111,7 @@ impl BinanceSpotOrderBook {
                         let event: Event = serde_json::from_str(&text)?;
                         let mut orderbook = shared.write().unwrap(); // Acquire guard <orderbook>
 
-                        //TODO:: Finish this
-                        orderbook.update_snapshot(event);
+                        orderbook.update_snapshot(event)?;
                     };
                     Ok(())
                 };

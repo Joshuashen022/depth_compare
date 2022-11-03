@@ -3,7 +3,7 @@ use std::fmt;
 // use std::sync::{Arc, RwLock};
 use serde::{de::Visitor, Deserialize, Deserializer, de::SeqAccess};
 use ordered_float::OrderedFloat;
-
+use anyhow::{Result, Error, anyhow};
 
 #[derive(Deserialize, Debug)]
 pub struct Event {
@@ -166,8 +166,18 @@ impl Shared {
     }
 
     // with give event to update snapshot
-    // if even doesn't satisfy, do nothing
-    pub fn update_snapshot(&self, _event: Event){
+    // if even doesn't satisfy return error
+    pub fn update_snapshot(&mut self, event: Event)-> Result<()>  {
+        if event.first_update_id != self.last_update_id + 1 {
+            Err(anyhow!(
+                "Expect event u to be {}, found {}",
+                self.last_update_id + 1,
+                event.first_update_id
+            ))
+        } else{
+            self.add_event(event);
+            Ok(())
+        }
 
     }
 }
