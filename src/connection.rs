@@ -151,15 +151,15 @@ impl BinanceSpotOrderBook {
 
 
                             while let Some(event) = buffer.pop_front() {
-                                println!("order book {}, Event {}-{}",
-                                         orderbook.id(), event.first_update_id, event.last_update_id);
 
                                 if event.first_update_id > orderbook.id() + 1 {
                                     println!("All event is not usable, need a new snap shot ");
+                                    println!("order book {}, Event {}-{}",
+                                             orderbook.id(), event.first_update_id, event.last_update_id);
                                     need_new_snap_snot = true;
                                     break;
                                 } else if event.first_update_id == orderbook.id() + 1 {
-                                    println!("Update complete");
+                                    // println!("Update complete");
                                     orderbook.add_event(event)
                                 } else {
                                     continue
