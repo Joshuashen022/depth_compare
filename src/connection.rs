@@ -99,13 +99,14 @@ impl BinanceSpotOrderBook {
                        buffer.append(&mut (*guard));
                     }
                     println!("Buffer len {}", buffer.len());
-                    println!("Snap shot {}", snapshot.last_update_id);
+                    println!("Snap shot {}", snapshot.last_update_id); // 2861806778
                     let mut overbook_setup = false;
                     while let Some(event) = buffer.pop_front() {
                         println!(" Event {}-{}", event.first_update_id, event.last_update_id);
+                        // Event 2861806779-2861806780
 
                         if event.first_update_id > snapshot.last_update_id {
-                            println!("All event is not usable, need a new snap shot ");
+                            println!("Rest event is not usable, need a new snap shot ");
                             println!();
                             break;
                         }
