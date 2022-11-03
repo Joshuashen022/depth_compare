@@ -18,7 +18,10 @@ async fn main() -> Result<()> {
 
     let order_book = BinanceSpotOrderBook::new();
 
-    order_book.depth();
+    match order_book.depth(){
+        Ok(_) => (),
+        Err(e) => println!("{}",e),
+    };
 
     // In case thread is out of control
     let mut default_break = 0;
