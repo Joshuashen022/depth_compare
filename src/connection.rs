@@ -105,10 +105,9 @@ impl BinanceSpotOrderBook {
                         println!(" Event {}-{}", event.first_update_id, event.last_update_id);
                         // Event 2861806779-2861806780
 
-                        if event.first_update_id > snapshot.last_update_id {
-                            println!("Rest event is not usable, need a new snap shot ");
-                            println!();
-                            break;
+                        if snapshot.last_update_id >= event.first_update_id  {
+                            // step 4
+                            continue
                         }
 
                         if event.match_snapshot(snapshot.last_update_id) {
@@ -121,6 +120,12 @@ impl BinanceSpotOrderBook {
                             break;
                         } else {
                             // println!(" No match ");
+                        }
+
+                        if event.first_update_id > snapshot.last_update_id + 1 {
+                            println!("Rest event is not usable, need a new snap shot ");
+                            println!();
+                            break;
                         }
 
                     }
