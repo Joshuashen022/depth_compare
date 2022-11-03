@@ -93,10 +93,11 @@ impl BinanceSpotOrderBook {
                     }
 
                     println!(" Done Checking");
-
+                    let mut counter = 0;
                     if !overbook_setup {
 
                         while let Ok(msg) = stream.next().await.unwrap(){ //
+                            counter += 1;
                             if !msg.is_text() {
                                 println!(" event is far ahead ");
                                 continue
@@ -129,11 +130,11 @@ impl BinanceSpotOrderBook {
                     if !overbook_setup{
                         continue
                     }
-                    println!(" Done Checking 2");
-                    {
-                        let mut guard  = status.lock().await;
-                        *guard = true;
-                    }
+                    println!(" Done Checking 2 {}", counter);
+                    // {
+                    //     let mut guard  = status.lock().await;
+                    //     *guard = true;
+                    // }
 
                     while let Ok(msg) = stream.next().await.unwrap(){
                         if !msg.is_text() {
