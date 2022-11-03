@@ -1,0 +1,6 @@
+A running buffer keep collecting data from the stream.
+
+The problem with this solution
+When we get a snap shot from the net work, what if there is no suitable event in the buffer.
+
+After getting the snap shot, wait for a while to collect at most 10 events (1s).
