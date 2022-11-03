@@ -85,13 +85,13 @@ impl BinanceSpotOrderBook {
             println!("Start OrderBook thread");
             loop {
                 let res : Result<()> = {
+                    // Wait for a while to collect event into buffer
+                    sleep(Duration::from_millis(1000)).await;
+
                     let snapshot: BinanceSpotOrderBookSnapshot = reqwest::get(REST)
                         .await?
                         .json()
                         .await?;
-
-                    // Wait for a while to collect event into buffer
-                    sleep(Duration::from_millis(1000)).await;
 
                     let mut buffer = VecDeque::<Event>::new();
                     {
@@ -107,7 +107,7 @@ impl BinanceSpotOrderBook {
                         if event.first_update_id > snapshot.last_update_id {
                             println!("All event is not usable, need a new snap shot ");
                             println!();
-                            continue;
+                            break;
                         }
 
                         if event.match_snapshot(snapshot.last_update_id) {
