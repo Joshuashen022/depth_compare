@@ -74,7 +74,7 @@ impl BinanceSpotOrderBook {
                         if event.first_update_id > snapshot.last_update_id {
                             continue;
                         }
-
+                        println!(" event is usable ");
                         if event.match_snapshot(snapshot.last_update_id) {
                             println!(" Found match snapshot ");
                             let mut orderbook = shared.write().unwrap();
@@ -83,6 +83,8 @@ impl BinanceSpotOrderBook {
 
                             overbook_setup = true;
                             break;
+                        } else {
+                            println!(" Not match ");
                         }
 
                     }
