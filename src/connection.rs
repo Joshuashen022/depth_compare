@@ -140,7 +140,7 @@ impl BinanceSpotOrderBook {
                             }
                             println!("Buffer2 len {}", buffer.len());
                             // Sleep for a while to collect event by another thread
-                            sleep(Duration::from_millis(500)).await;
+                            sleep(Duration::from_millis(1000)).await;
 
                             let instance = Instant::now();
                             let buffer_len = buffer.len();
@@ -151,15 +151,15 @@ impl BinanceSpotOrderBook {
 
 
                             while let Some(event) = buffer.pop_front() {
-                                println!("Event {}-{}", event.first_update_id, event.last_update_id);
+                                println!("order book {}, Event {}-{}",
+                                         orderbook.id(), event.first_update_id, event.last_update_id);
 
-                                println!("order book {}", orderbook.id());
                                 if event.first_update_id > orderbook.id() + 1 {
                                     println!("All event is not usable, need a new snap shot ");
                                     need_new_snap_snot = true;
                                     break;
                                 } else if event.first_update_id == orderbook.id() + 1 {
-
+                                    println!("Update complete");
                                     orderbook.add_event(event)
                                 } else {
                                     continue
@@ -171,8 +171,8 @@ impl BinanceSpotOrderBook {
                                 break;
                             }
 
-                            println!("deal {} Event used {}ms", buffer_len, instance.elapsed().as_millis());
-
+                            // println!("deal {} Event used {}ms", buffer_len, instance.elapsed().as_millis());
+                            // This step cost less than 1ms
                         }
                     }
 
