@@ -71,6 +71,7 @@ impl BinanceSpotOrderBook {
                     println!(" Collected event ");
                     let mut overbook_setup = false;
                     while let Some(event) = buffer.pop_front() {
+                        println!(" Check event ");
                         if event.first_update_id > snapshot.last_update_id {
                             continue;
                         }
