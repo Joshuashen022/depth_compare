@@ -36,7 +36,9 @@ impl BinanceSpotOrderBook {
         let shared = self.shared.clone();
         let status = self.status.clone();
         tokio::spawn(async move {
+            let mut default_exit = 0;
             loop {
+
                 let res : Result<()> = {
                     let url = Url::parse(DEPTH_URL).expect("Bad URL");
 
@@ -45,12 +47,12 @@ impl BinanceSpotOrderBook {
                         Ok((stream, _)) => stream,
                         Err(_) => continue,
                     };
-
+                    println!(" Connected to wss://Depth ");
                     let snapshot: BinanceSpotOrderBookSnapshot = reqwest::get(REST)
                         .await?
                         .json()
                         .await?;
-
+                    println!(" Connected to https://REST ");
                     let mut buffer = VecDeque::new();
 
                     while let Ok(msg) = stream.next().await.unwrap(){ //
@@ -66,27 +68,24 @@ impl BinanceSpotOrderBook {
                             break
                         }
                     };
-
-
-                    //
-                    // orderbook.load_snapshot(&snapshot);
+                    println!(" Collected event ");
 
                     let event = buffer.pop_front().unwrap();
 
                     if event.first_update_id > snapshot.last_update_id {
-                        // Snapshot is not usable
+                        println!(" Snapshot is not usable ");
                         continue;
                     }
 
                     if event.match_snapshot(snapshot.last_update_id) {
-
+                        println!(" Found match snapshot ");
                         let mut orderbook = shared.write().unwrap();
                         orderbook.load_snapshot(&snapshot);
                         orderbook.add_event(event);
 
                     } else{
                         // No matching event
-                        println!(" No matching event re-getting a event ");
+                        println!(" No matching event re-getting OrderBookSnapshot ");
                         continue
                     }
 
@@ -108,7 +107,17 @@ impl BinanceSpotOrderBook {
                     };
                     Ok(())
                 };
+                match res {
+                    Ok(_) => println!("Finish all code"),
+                    Err(e) => println!("Error happen when running code: {:?}", e),
+                }
 
+                if default_exit > 20 {
+                    println!("Using default break");
+                    break
+                }
+
+                default_exit += 1;
             }
             Ok::<(), Error>(())
         });
