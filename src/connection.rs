@@ -5,7 +5,7 @@ use url::Url;
 // use tokio::time::{sleep, Duration};
 use futures_util::StreamExt;
 use anyhow::{Result, Error};
-use anyhow::bail;
+use anyhow::{bail, anyhow};
 use tokio::sync::Mutex;
 // use tokio::select;
 use std::sync::{Arc, RwLock};
@@ -55,7 +55,6 @@ impl BinanceSpotOrderBook {
                     println!(" Connected to https://REST ");
                     let mut buffer = VecDeque::new();
 
-                    // TODO:: start a task to collect Event.
                     while let Ok(msg) = stream.next().await.unwrap(){ //
                         if !msg.is_text() {
                             continue
@@ -96,9 +95,41 @@ impl BinanceSpotOrderBook {
                     println!(" Done Checking");
 
                     if !overbook_setup {
-                        bail!("Snapshot is not usable")
+
+                        while let Ok(msg) = stream.next().await.unwrap(){ //
+                            if !msg.is_text() {
+                                println!(" event is far ahead ");
+                                continue
+                            }
+                            let text = msg.into_text().unwrap();
+                            let event: Event = serde_json::from_str(&text)?;
+                            if event.first_update_id > snapshot.last_update_id {
+                                break;
+                            }
+                            if event.match_snapshot(snapshot.last_update_id) {
+                                println!(" Found match snapshot ");
+                                let mut orderbook = shared.write().unwrap();
+                                orderbook.load_snapshot(&snapshot);
+                                orderbook.add_event(event);
+
+                                overbook_setup = true;
+                                break;
+                            } else {
+                                println!(" Not match should {} actually {}-{}",
+                                         snapshot.last_update_id,
+                                         event.first_update_id,
+                                         event.last_update_id
+                                );
+                            }
+                        };
+
+                        continue
                     }
-                    println!(" Done Checking????");
+
+                    if !overbook_setup{
+                        continue
+                    }
+                    println!(" Done Checking 2");
                     {
                         let mut guard  = status.lock().await;
                         *guard = true;
@@ -112,9 +143,25 @@ impl BinanceSpotOrderBook {
                         let event: Event = serde_json::from_str(&text)?;
                         let mut orderbook = shared.write().unwrap(); // Acquire guard <orderbook>
 
-                        orderbook.update_snapshot(event)?;
+                        let event_id = event.first_update_id;
+                        match orderbook.update_snapshot(event){
+                            Ok(()) => (),
+                            Err(_) => {
+                                if event_id < orderbook.id() + 1 {
+                                    // Orderook is ahead of event, so we wait for next event
+                                    continue
+                                } else {
+                                    println!("Update snapshot failed, should {} actually {}",
+                                             orderbook.id() + 1,
+                                             event_id,
+                                    );
+                                    break
+                                }
+                            }
+                        }
                     };
-                    Ok(())
+
+                    Err(anyhow!("Error happened, start from top"))
                 };
                 match res {
                     Ok(_) => println!("Finish all code"),
