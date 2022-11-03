@@ -93,11 +93,12 @@ impl BinanceSpotOrderBook {
 
                     }
 
-                    // let event = buffer.pop_front().unwrap();
+                    println!(" Done Checking");
 
                     if !overbook_setup {
                         bail!("Snapshot is not usable")
                     }
+                    println!(" Done Checking????");
                     {
                         let mut guard  = status.lock().await;
                         *guard = true;
