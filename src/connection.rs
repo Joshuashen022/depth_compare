@@ -85,6 +85,10 @@ impl BinanceSpotOrderBook {
             println!("Start OrderBook thread");
             loop {
                 let res : Result<()> = {
+                    {
+                        let mut guard = status.lock().await;
+                        (*guard) = false;
+                    }
                     // Wait for a while to collect event into buffer
                     sleep(Duration::from_millis(1000)).await;
 
@@ -117,6 +121,7 @@ impl BinanceSpotOrderBook {
                             orderbook.add_event(event);
 
                             overbook_setup = true;
+
                             break;
                         } else {
                             // println!(" No match ");
@@ -128,6 +133,11 @@ impl BinanceSpotOrderBook {
                             break;
                         }
 
+                    }
+
+                    if overbook_setup {
+                        let mut guard = status.lock().await;
+                        (*guard) = true;
                     }
 
                     if overbook_setup {
@@ -168,6 +178,7 @@ impl BinanceSpotOrderBook {
                             }
 
                             if need_new_snap_snot {
+
                                 break;
                             }
 
