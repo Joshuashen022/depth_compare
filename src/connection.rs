@@ -216,7 +216,7 @@ impl BinanceSpotOrderBook {
 
 
         let _ = tokio::spawn(async move {
-            println!("Start buffer maintain thread");
+            println!("Start Level Buffer maintain thread");
             loop{
                 let url = Url::parse(LEVEL_DEPTH_URL).expect("Bad URL");
 

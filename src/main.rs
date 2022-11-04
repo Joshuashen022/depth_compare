@@ -26,7 +26,7 @@ async fn main() -> Result<()> {
     };
 
     // Start depth level order book
-    order_book_level_depth.level_depth();
+    // order_book_level_depth.level_depth();
 
     loop{
         println!();
@@ -40,21 +40,21 @@ async fn main() -> Result<()> {
             continue
         }
 
-        let depth = depth.unwrap();
-        let depth_level = depth_level.unwrap();
-        let depth_time = depth.time_stamp;
-        let depth_level_time = depth_level.time_stamp;
-        let contains = depth.if_contains(&depth_level);
-
-        println!("{} {}, contains? {}", depth_time, depth_level_time, contains);
-
-        if !contains {
-            let (different_bids, different_asks ) = depth.find_different(&depth_level);
-            println!("bids");
-            println!("{:?}", different_bids);
-            println!("asks");
-            println!("{:?}", different_asks);
-        }
+        // let depth = depth.unwrap();
+        // let depth_level = depth_level.unwrap();
+        // let depth_time = depth.time_stamp;
+        // let depth_level_time = depth_level.time_stamp;
+        // let contains = depth.if_contains(&depth_level);
+        //
+        // println!("{} {}, contains? {}", depth_time, depth_level_time, contains);
+        //
+        // if !contains {
+        //     let (different_bids, different_asks ) = depth.find_different(&depth_level);
+        //     println!("bids");
+        //     println!("{:?}", different_bids);
+        //     println!("asks");
+        //     println!("{:?}", different_asks);
+        // }
 
     }
 
