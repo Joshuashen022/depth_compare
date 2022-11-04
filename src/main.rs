@@ -50,10 +50,10 @@ async fn main() -> Result<()> {
 
         if !contains {
             let (different_bids, different_asks ) = depth.find_different(&depth_level);
-            println!("bids");
-            println!("{:?}", different_bids);
-            println!("asks");
-            println!("{:?}", different_asks);
+            println!("bids different {}", different_bids.len());
+            // println!("{:?}", different_bids);
+            println!("asks different {}", different_asks.len());
+            // println!("{:?}", different_asks);
         }
 
     }
