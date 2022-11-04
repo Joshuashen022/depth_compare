@@ -101,6 +101,14 @@ impl<'de> Visitor<'de> for DepthRowVisitor {
 
 }
 
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BinanceSnapshot {
+    pub last_update_id: i64,
+    pub bids: Vec<DepthRow>,
+    pub asks: Vec<DepthRow>,
+}
+
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct BinanceSpotOrderBookSnapshot {
@@ -177,7 +185,7 @@ impl Shared {
         self.last_update_id
     }
 
-    pub fn load_snapshot(&mut self, snapshot: &BinanceSpotOrderBookSnapshot) {
+    pub fn load_snapshot(&mut self, snapshot: &BinanceSnapshot) {
         self.asks.clear();
         for ask in &snapshot.asks {
             self.asks.insert(OrderedFloat(ask.price), ask.amount);

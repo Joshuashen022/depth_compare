@@ -1,5 +1,5 @@
 use std::collections::VecDeque;
-use crate::deep::{LevelEvent, Event, BinanceSpotOrderBookSnapshot, Shared};
+use crate::deep::{LevelEvent, Event, BinanceSpotOrderBookSnapshot, Shared, BinanceSnapshot};
 use tokio_tungstenite::connect_async;
 use url::Url;
 use tokio::time::{sleep, Duration};
@@ -93,7 +93,7 @@ impl BinanceSpotOrderBook {
                     // Wait for a while to collect event into buffer
                     sleep(Duration::from_millis(1000)).await;
                     println!("Calling Https://");
-                    let snapshot: BinanceSpotOrderBookSnapshot = reqwest::get(REST)
+                    let snapshot: BinanceSnapshot = reqwest::get(REST)
                         .await?
                         .json()
                         .await?;
