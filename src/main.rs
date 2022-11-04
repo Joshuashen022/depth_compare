@@ -35,7 +35,8 @@ async fn main() -> Result<()> {
         let depth = order_book_depth.get_snapshot().await;
         let depth_level = order_book_level_depth.get_snapshot().await;
         if depth_level.is_none() || depth.is_none(){
-
+            println!("{:?}", depth_level);
+            println!("{:?}", depth);
             continue
         }
 
