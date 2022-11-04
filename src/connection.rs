@@ -99,10 +99,13 @@ impl BinanceSpotOrderBook {
                         .await?;
                     sleep(Duration::from_millis(500)).await;
                     let mut buffer = VecDeque::<Event>::new();
+                    println!("Acquiring buffer_clone2 lock");
                     {
                         let mut guard = buffer_clone2.lock().await;
                        buffer.append(&mut (*guard));
                     }
+                    println!("Dropped buffer_clone2 lock");
+
                     println!("Buffer len {}", buffer.len());
                     println!("Snap shot {}", snapshot.last_update_id); // 2861806778
                     let mut overbook_setup = false;
