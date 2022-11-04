@@ -26,7 +26,7 @@ async fn main() -> Result<()> {
     };
 
     // Start depth level order book
-    // order_book_level_depth.level_depth();
+    order_book_level_depth.level_depth();
 
     loop{
         println!();
@@ -36,8 +36,7 @@ async fn main() -> Result<()> {
 
         let depth_level = order_book_level_depth.get_snapshot().await;
         if depth_level.is_none() || depth.is_none(){
-            println!("{:?}", depth_level);
-            println!("{:?}", depth);
+            println!("depth_level {}, depth {}", depth_level.is_none(), depth.is_none());
             continue
         }
         //
