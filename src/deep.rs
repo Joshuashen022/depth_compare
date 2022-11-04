@@ -148,14 +148,12 @@ impl BinanceSpotOrderBookSnapshot{
         for bid in &other.bids{
             if !self.bids.contains(bid) {
                 bid_different.push(*bid);
-                break
             }
         }
 
         for ask in &other.bids{
             if !self.asks.contains(&ask){
                 ask_different.push(*ask);
-                break
             }
         }
 
