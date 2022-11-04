@@ -214,7 +214,7 @@ impl BinanceSpotOrderBookSnapshot{
 
     /// Retrieve from String usually in local store
     /// `OrderBookStore` serialized String
-    fn from_string(data: String) -> Self {
+    pub fn from_string(data: String) -> Self {
         let raw:OrderBookStore = serde_json::from_str(&data).unwrap();
         Self::transform_from_local(raw)
     }
