@@ -131,8 +131,8 @@ impl BinanceSpotOrderBookSnapshot{
         contains_bids && contains_asks
     }
 
-    /// Find different `asks` and `bids`,
-    /// and return as `(asks, bids)`
+    /// Find different `bids` and `asks`,
+    /// and return as `(bids, asks)`
     pub fn find_different(&self, other: &BinanceSpotOrderBookSnapshot) -> (Vec<DepthRow>, Vec<DepthRow>) {
         let mut bid_different = Vec::new();
         let mut ask_different = Vec::new();
