@@ -64,7 +64,7 @@ async fn main() -> Result<()> {
 }
 
 #[test]
-fn read_and_compare(){
+fn read_and_compare()-> Result<()>{
 
     use std::fs::OpenOptions;
     use std::io::Read;
@@ -110,5 +110,6 @@ fn read_and_compare(){
     }
 
     println!("done {}", contains );
+    Ok(())
 }
 
