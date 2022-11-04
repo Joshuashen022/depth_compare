@@ -92,11 +92,12 @@ impl BinanceSpotOrderBook {
                     println!("Dropped the status.lock");
                     // Wait for a while to collect event into buffer
                     sleep(Duration::from_millis(1000)).await;
-
+                    println!("Calling Https://");
                     let snapshot: BinanceSpotOrderBookSnapshot = reqwest::get(REST)
                         .await?
                         .json()
                         .await?;
+                    println!("Done Calling Https://");
                     sleep(Duration::from_millis(500)).await;
                     let mut buffer = VecDeque::<Event>::new();
                     println!("Acquiring buffer_clone2 lock");
