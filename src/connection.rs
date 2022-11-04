@@ -89,6 +89,7 @@ impl BinanceSpotOrderBook {
                         let mut guard = status.lock().await;
                         (*guard) = false;
                     }
+                    println!("Dropped the status.lock");
                     // Wait for a while to collect event into buffer
                     sleep(Duration::from_millis(1000)).await;
 
