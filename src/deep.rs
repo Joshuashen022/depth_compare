@@ -36,7 +36,17 @@ impl Event {
     }
 }
 
-#[derive(Debug)]
+#[derive(Deserialize, Debug)]
+pub struct LevelEvent {
+    #[serde(rename = "lastUpdateId")]
+    pub last_update_id: i64,
+
+    pub bids: Vec<DepthRow>,
+
+    pub asks: Vec<DepthRow>,
+}
+
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub struct DepthRow {
     pub price: f64,
     pub amount: f64,
@@ -91,17 +101,62 @@ impl<'de> Visitor<'de> for DepthRowVisitor {
 
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct BinanceSpotOrderBookSnapshot {
     pub last_update_id: i64,
     pub bids: Vec<DepthRow>,
     pub asks: Vec<DepthRow>,
 }
+impl BinanceSpotOrderBookSnapshot{
+    /// Compare self with other Order Book
+    pub fn if_contains(&self, other: &BinanceSpotOrderBookSnapshot) -> bool {
+        let mut contains_bids = true;
+        let mut contains_asks = true;
+        for bid in &other.bids{
+            if !self.bids.contains(bid) {
+                contains_bids = false;
+                break
+            }
+        }
 
+        for ask in &other.bids{
+            if !self.asks.contains(&ask){
+                contains_asks = false;
+                break
+            }
+        }
+
+        contains_bids && contains_asks
+    }
+
+    /// Find different `asks` and `bids`,
+    /// and return as `(asks, bids)`
+    pub fn find_different(&self, other: &BinanceSpotOrderBookSnapshot) -> (Vec<DepthRow>, Vec<DepthRow>) {
+        let mut bid_different = Vec::new();
+        let mut ask_different = Vec::new();
+
+        for bid in &other.bids{
+            if !self.bids.contains(bid) {
+                bid_different.push(*bid);
+                break
+            }
+        }
+
+        for ask in &other.bids{
+            if !self.asks.contains(&ask){
+                ask_different.push(*ask);
+                break
+            }
+        }
+
+        (bid_different, ask_different)
+    }
+}
 
 pub struct Shared {
     last_update_id: i64,
+    time_stamp: i64,
     asks: BTreeMap<OrderedFloat<f64>, f64>,
     bids: BTreeMap<OrderedFloat<f64>, f64>,
 }
@@ -110,6 +165,7 @@ impl Shared {
     pub fn new() -> Self {
         Shared {
             last_update_id: 0,
+            time_stamp: 0,
             asks: BTreeMap::new(),
             bids: BTreeMap::new(),
         }
@@ -134,6 +190,7 @@ impl Shared {
         self.last_update_id = snapshot.last_update_id;
     }
 
+    /// Only used for "Event"
     pub fn add_event(&mut self, event: Event) {
         for ask in event.asks {
             if ask.amount == 0.0 {
@@ -152,6 +209,29 @@ impl Shared {
         }
 
         self.last_update_id = event.last_update_id;
+        self.time_stamp = event.ts;
+    }
+
+    /// Only used for "LevelEvent"
+    pub fn set_level_event(&mut self, level_event: LevelEvent, time_stamp: i64){
+        for ask in level_event.asks {
+            if ask.amount == 0.0 {
+                self.asks.remove(&OrderedFloat(ask.price));
+            } else {
+                self.asks.insert(OrderedFloat(ask.price), ask.amount);
+            }
+        }
+
+        for bid in level_event.bids {
+            if bid.amount == 0.0 {
+                self.bids.remove(&OrderedFloat(bid.price));
+            } else {
+                self.bids.insert(OrderedFloat(bid.price), bid.amount);
+            }
+        }
+
+        self.last_update_id = level_event.last_update_id;
+        self.time_stamp = time_stamp;
     }
 
     pub fn get_snapshot(&self) -> BinanceSpotOrderBookSnapshot {
@@ -173,8 +253,8 @@ impl Shared {
         }
     }
 
-    // with give event to update snapshot
-    // if event doesn't satisfy return error
+    /// With give event to update snapshot,
+    /// if event doesn't satisfy return error
     pub fn update_snapshot(&mut self, event: Event)-> Result<()>  {
         if event.first_update_id != self.last_update_id + 1 {
             Err(anyhow!(
@@ -190,3 +270,9 @@ impl Shared {
     }
 }
 
+#[test]
+fn depth_row(){
+    let a = DepthRow{amount:1.0, price: 2.0};
+    let b = DepthRow{amount:1.0, price: 2.0};
+    assert_eq!(a, b);
+}

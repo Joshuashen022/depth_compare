@@ -1,5 +1,5 @@
 use std::collections::VecDeque;
-use crate::deep::{Event, BinanceSpotOrderBookSnapshot, Shared};
+use crate::deep::{LevelEvent, Event, BinanceSpotOrderBookSnapshot, Shared};
 use tokio_tungstenite::connect_async;
 use url::Url;
 use tokio::time::{sleep, Duration};
@@ -9,7 +9,7 @@ use anyhow::{bail, anyhow};
 use tokio::sync::Mutex;
 // use tokio::select;
 use std::sync::{Arc, RwLock};
-use std::time::Instant;
+use std::time::{Instant, SystemTime, UNIX_EPOCH};
 use futures_util::future::err;
 // use tokio::spawn;
 
@@ -206,6 +206,59 @@ impl BinanceSpotOrderBook {
         });
 
         Ok(())
+    }
+
+    pub fn level_depth(&self) {
+        let shared = self.shared.clone();
+
+        // This is not actually used
+        let status = self.status.clone();
+
+
+        let _ = tokio::spawn(async move {
+            println!("Start buffer maintain thread");
+            loop{
+                let url = Url::parse(LEVEL_DEPTH_URL).expect("Bad URL");
+
+                let res = connect_async(url).await;
+                let mut stream = match res{
+                    Ok((stream, _)) => stream,
+                    Err(e) => {
+                        println!("Error {:?}, reconnecting {}", e, LEVEL_DEPTH_URL);
+                        continue
+                    },
+                };
+
+                {
+                    let mut guard = status.lock().await;
+                    (*guard) = true;
+                }
+
+                use std::time::{UNIX_EPOCH, SystemTime};
+
+                while let Ok(msg) = stream.next().await.unwrap(){ //
+                    if !msg.is_text() {
+                        continue
+                    }
+
+                    let text = match msg.into_text(){
+                        Ok(e) => e,
+                        Err(_) => continue,
+                    };
+
+                    let level_event: LevelEvent = match serde_json::from_str(&text){
+                        Ok(e) => e,
+                        Err(_) => continue,
+                    };
+
+                    let time = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
+                    if let Ok(mut guard) = shared.write(){
+                        (*guard).set_level_event(level_event, time.as_millis() as i64);
+                    }
+                };
+            }
+
+        });
     }
 
     /// Get the snapshot of the current Order Book

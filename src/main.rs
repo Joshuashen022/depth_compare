@@ -16,36 +16,27 @@ use std::sync::Arc;
 #[tokio::main]
 async fn main() -> Result<()> {
 
-    let order_book = BinanceSpotOrderBook::new();
+    let order_book_depth = BinanceSpotOrderBook::new();
+    let order_book_level_depth = BinanceSpotOrderBook::new();
 
-    match order_book.depth(){
+    // Start depth order book
+    match order_book_depth.depth(){
         Ok(_) => (),
         Err(e) => println!("{}",e),
     };
 
-    // In case thread is out of control
-    let mut default_break = 0;
+    // Start depth level order book
+    order_book_level_depth.level_depth();
 
     loop{
-        if let Some(snapshot) = order_book.get_snapshot().await{
-            println!("snapshot id: {}, ask cnt: {}, bid cnt: {}", snapshot.last_update_id, snapshot.asks.len(), snapshot.bids.len());
+        let _depth = order_book_depth.get_snapshot().await;
+        let depth_level = order_book_level_depth.get_snapshot().await;
+        if depth_level.is_some(){
+            println!("{:?}", depth_level.unwrap());
+        }
 
-            println!("------ asks ------");
-            for ask in snapshot.asks.iter().take(5) {
-                println!("price: {}, amount: {}", ask.price, ask.amount);
-            }
-
-            println!("------ bids ------");
-            for bid in snapshot.bids.iter().take(5) {
-                println!("price: {}, amount: {}", bid.price, bid.amount);
-            }
-
-            if default_break > 20 {
-                break;
-            }
-            default_break += 1;
-        };
-
+        println!();
+        println!();
         sleep(Duration::from_secs(1)).await;
     }
 
