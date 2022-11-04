@@ -1,9 +1,10 @@
 use std::collections::BTreeMap;
 use std::fmt;
 // use std::sync::{Arc, RwLock};
-use serde::{de::Visitor, Deserialize, Deserializer, de::SeqAccess};
+use serde::{de::Visitor, Deserialize, Deserializer, de::SeqAccess, Serialize, Serializer};
 use ordered_float::OrderedFloat;
 use anyhow::{Result, Error, anyhow};
+use serde::ser::SerializeTuple;
 
 #[derive(Deserialize, Debug)]
 pub struct Event {
@@ -60,6 +61,19 @@ impl<'de> Deserialize<'de> for DepthRow {
         deserializer.deserialize_tuple(2, DepthRowVisitor)
     }
 }
+
+impl Serialize for DepthRow{
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+        where
+            S: Serializer
+    {
+        let mut seq = serializer.serialize_tuple(2)?;
+        seq.serialize_element(&self.price)?;
+        seq.serialize_element(&self.amount)?;
+        seq.end()
+    }
+}
+
 
 struct DepthRowVisitor;
 
@@ -159,6 +173,59 @@ impl BinanceSpotOrderBookSnapshot{
 
         (bid_different, ask_different)
     }
+
+    /// Transform into data that could be serialized
+    fn transform_to_local(&self) -> OrderBookStore{
+        let bids :Vec<_> = self.bids.iter().map(|x|(x.price,x.amount)).collect();
+        let asks :Vec<_> = self.asks.iter().map(|x|(x.price,x.amount)).collect();
+        OrderBookStore{
+            last_update_id: self.last_update_id,
+            time_stamp: self.time_stamp,
+            bids,
+            asks,
+        }
+    }
+
+    fn transform_from_local(data: OrderBookStore) -> Self{
+        let bids :Vec<_> = data.bids.iter()
+            .map(|(price, amount)|
+                DepthRow{
+                    price: *price,
+                    amount: *amount
+                }
+            )
+            .collect();
+        let asks :Vec<_> = data.asks.iter()
+            .map(|(price, amount)|
+                DepthRow{
+                    price: *price,
+                    amount: *amount
+                }
+            )
+            .collect();
+
+        BinanceSpotOrderBookSnapshot{
+            last_update_id: data.last_update_id,
+            time_stamp: data.time_stamp,
+            bids,
+            asks,
+        }
+    }
+
+    /// Retrieve from String usually in local store
+    /// `OrderBookStore` serialized String
+    fn from_string(data: String) -> Self {
+        let raw:OrderBookStore = serde_json::from_str(&data).unwrap();
+        Self::transform_from_local(raw)
+    }
+}
+
+#[derive(Deserialize, Serialize, Debug)]
+pub struct OrderBookStore{
+    pub last_update_id: i64,
+    pub time_stamp: i64,
+    pub bids: Vec<(f64,f64)>,
+    pub asks: Vec<(f64,f64)>,
 }
 
 pub struct Shared {
@@ -275,6 +342,19 @@ impl Shared {
             Ok(())
         }
 
+    }
+
+    /// Generate writable String to be stored into local file
+    /// `OrderBookStore` serialized String
+    pub fn writable(&self) -> Option<String>{
+        let transformed = self.get_snapshot().transform_to_local();
+
+        if let Ok(raw) = serde_json::to_string(&transformed){
+            Some(format!("{}\n", raw))
+        } else{
+            // Unlikely happen
+            None
+        }
     }
 }
 

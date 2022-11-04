@@ -11,11 +11,16 @@ use tokio::sync::Mutex;
 use std::sync::{Arc, RwLock};
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
 use futures_util::future::err;
-// use tokio::spawn;
+
+use std::fs::OpenOptions;
+use std::io::prelude::*;
+use std::io::Read;
 
 const DEPTH_URL: &str = "wss://stream.binance.com:9443/ws/bnbbtc@depth@100ms";
 const LEVEL_DEPTH_URL: &str = "wss://stream.binance.com:9443/ws/bnbbtc@depth20@100ms";
 const REST: &str = "https://api.binance.com/api/v3/depth?symbol=BNBBTC&limit=1000";
+const DEPTH_FILE:&str = "depth.cache";
+const LEVEL_DEPTH_FILE: &str = "depth_level.cache";
 const MAX_BUFFER: usize = 30;
 
 pub struct BinanceSpotOrderBook {
@@ -110,6 +115,7 @@ impl BinanceSpotOrderBook {
                     println!("Buffer len {}", buffer.len());
                     println!("Snap shot {}", snapshot.last_update_id); // 2861806778
                     let mut overbook_setup = false;
+
                     while let Some(event) = buffer.pop_front() {
                         println!(" Event {}-{}", event.first_update_id, event.last_update_id);
                         // Event 2861806779-2861806780
@@ -163,7 +169,8 @@ impl BinanceSpotOrderBook {
 
                             // Acquire guard <orderbook>
                             let mut orderbook = shared.write().unwrap();
-
+                            let mut file = OpenOptions::new();
+                            let mut reader = file.create(true).append(true).open(DEPTH_FILE).unwrap();
 
                             while let Some(event) = buffer.pop_front() {
 
@@ -175,7 +182,13 @@ impl BinanceSpotOrderBook {
                                     break;
                                 } else if event.first_update_id == orderbook.id() + 1 {
                                     // println!("Update complete");
-                                    orderbook.add_event(event)
+                                    orderbook.add_event(event);
+
+                                    if let Some(mut writable_data) = orderbook.writable(){
+                                        let raw = format!("{}\n", writable_data);
+                                        reader.write_all(raw.as_bytes()).unwrap_or(());
+                                    };
+
                                 } else {
                                     continue
                                 }
@@ -239,8 +252,8 @@ impl BinanceSpotOrderBook {
                     (*guard) = true;
                 }
 
-                use std::time::{UNIX_EPOCH, SystemTime};
-
+                let mut file = OpenOptions::new();
+                let mut reader = file.create(true).append(true).open(LEVEL_DEPTH_FILE).unwrap();
                 while let Ok(msg) = stream.next().await.unwrap(){ //
                     if !msg.is_text() {
                         continue
@@ -257,8 +270,13 @@ impl BinanceSpotOrderBook {
                     };
 
                     let time = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
-                    if let Ok(mut guard) = shared.write(){
-                        (*guard).set_level_event(level_event, time.as_millis() as i64);
+                    if let Ok(mut orderbook) = shared.write(){
+                        (*orderbook).set_level_event(level_event, time.as_millis() as i64);
+
+                        if let Some(mut writable_data) = orderbook.writable(){
+                            let raw = format!("{}\n", writable_data);
+                            reader.write_all(raw.as_bytes()).unwrap_or(());
+                        };
                     }
                 };
             }
