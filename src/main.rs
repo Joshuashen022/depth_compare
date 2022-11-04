@@ -29,14 +29,22 @@ async fn main() -> Result<()> {
     order_book_level_depth.level_depth();
 
     loop{
-        let _depth = order_book_depth.get_snapshot().await;
+        println!();
+        println!();
+
+        let depth = order_book_depth.get_snapshot().await;
         let depth_level = order_book_level_depth.get_snapshot().await;
-        if depth_level.is_some(){
-            println!("{:?}", depth_level.unwrap());
+        if depth_level.is_none() || depth.is_none(){
+            continue
         }
 
-        println!();
-        println!();
+        let depth = depth.unwrap();
+        let depth_level = depth_level.unwrap();
+        let depth_time = depth.time_stamp;
+        let depth_level_time = depth_level.time_stamp;
+
+        println!("{} {}, contains? {}", depth_time, depth_level_time, depth.if_contains(&depth_level));
+
         sleep(Duration::from_secs(1)).await;
     }
 

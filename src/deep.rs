@@ -105,6 +105,7 @@ impl<'de> Visitor<'de> for DepthRowVisitor {
 #[serde(rename_all = "camelCase")]
 pub struct BinanceSpotOrderBookSnapshot {
     pub last_update_id: i64,
+    pub time_stamp: i64,
     pub bids: Vec<DepthRow>,
     pub asks: Vec<DepthRow>,
 }
@@ -245,9 +246,10 @@ impl Shared {
             .rev()
             .map(|(price, amount)| DepthRow {price: price.into_inner(), amount: *amount})
             .collect();
-
+        let time_stamp = self.time_stamp;
         BinanceSpotOrderBookSnapshot {
             last_update_id: self.last_update_id,
+            time_stamp,
             asks,
             bids,
         }
