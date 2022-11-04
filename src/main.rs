@@ -11,6 +11,7 @@ use tokio::time::{sleep, Duration};
 use anyhow::Result;
 use tokio::sync::Mutex;
 use std::sync::Arc;
+use crate::deep::BinanceSpotOrderBookSnapshot;
 // use tokio::spawn;
 
 #[tokio::main]
@@ -61,3 +62,53 @@ async fn main() -> Result<()> {
     Ok(())
 
 }
+
+#[test]
+fn read_and_compare(){
+
+    use std::fs::OpenOptions;
+    use std::io::Read;
+
+    let mut reader1 = OpenOptions::new()
+        .read(true).open("depth.cache")?;
+    let mut reader2 = OpenOptions::new()
+        .read(true).open("depth_level.cache")?;
+
+    let mut buffer1 = String::new();
+    let mut buffer2 = String::new();
+
+    reader1.read_to_string(&mut buffer1)?;
+    reader2.read_to_string(&mut buffer2)?;
+
+    buffer1.pop();
+    buffer2.pop();
+
+    let depths:Vec<BinanceSpotOrderBookSnapshot> = buffer1.split("\n").collect::<Vec<_>>().iter()
+        .map(|s|BinanceSpotOrderBookSnapshot::from_string(s.to_string()))
+        .collect();
+    let depth_levels:Vec<BinanceSpotOrderBookSnapshot> = buffer2.split("\n").collect::<Vec<_>>().iter()
+        .map(|s|BinanceSpotOrderBookSnapshot::from_string(s.to_string()))
+        .collect();
+    let mut contains = false;
+    for depth in depths{
+        for depth_level in &depth_levels{
+            let 结果 = depth.if_contains(depth_level);
+
+            let depth_time = depth.time_stamp;
+            let depth_id = depth.last_update_id;
+
+            let dl_time = depth_level.time_stamp;
+            let dl_id = depth_level.last_update_id;
+            // println!(" Depth {}-{} Depth Level {}-{} {}", depth_time, depth_id, dl_time ,dl_id , 结果);
+
+            println!("Time {} Id {} {}", depth_time - dl_time, depth_id - dl_id, 结果);
+
+            if 结果 {
+                contains = true;
+            }
+        }
+    }
+
+    println!("done {}", contains );
+}
+
