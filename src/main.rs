@@ -31,10 +31,11 @@ async fn main() -> Result<()> {
     loop{
         println!();
         println!();
-
+        sleep(Duration::from_secs(1)).await;
         let depth = order_book_depth.get_snapshot().await;
         let depth_level = order_book_level_depth.get_snapshot().await;
         if depth_level.is_none() || depth.is_none(){
+
             continue
         }
 
@@ -54,7 +55,6 @@ async fn main() -> Result<()> {
             println!("{:?}", different_asks);
         }
 
-        sleep(Duration::from_secs(1)).await;
     }
 
     Ok(())
