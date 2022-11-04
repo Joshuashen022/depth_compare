@@ -143,7 +143,7 @@ impl BinanceSpotOrderBookSnapshot{
             }
         }
 
-        for ask in &other.bids{
+        for ask in &other.asks{
             if !self.asks.contains(&ask){
                 contains_asks = false;
                 break
@@ -165,7 +165,7 @@ impl BinanceSpotOrderBookSnapshot{
             }
         }
 
-        for ask in &other.bids{
+        for ask in &other.asks{
             if !self.asks.contains(&ask){
                 ask_different.push(*ask);
             }
@@ -363,4 +363,55 @@ fn depth_row(){
     let a = DepthRow{amount:1.0, price: 2.0};
     let b = DepthRow{amount:1.0, price: 2.0};
     assert_eq!(a, b);
+}
+
+#[test]
+fn if_contains_test(){
+    let a = DepthRow{amount:1.0, price: 2.0};
+    let b = DepthRow{amount:1.1, price: 2.2};
+    let c = DepthRow{amount:1.2, price: 2.4};
+    let d = DepthRow{amount:1.3, price: 2.6};
+    let order_a = BinanceSpotOrderBookSnapshot{
+        last_update_id: 0,
+        time_stamp: 0,
+        bids: vec![a,b,c],
+        asks: vec![a,b,c],
+    };
+
+    let order_b = BinanceSpotOrderBookSnapshot{
+        last_update_id: 0,
+        time_stamp: 0,
+        bids: vec![a,b],
+        asks: vec![a,b],
+    };
+
+    let order_c = BinanceSpotOrderBookSnapshot{
+        last_update_id: 0,
+        time_stamp: 0,
+        bids: vec![a,b,d],
+        asks: vec![a,b],
+    };
+
+    let order_d = BinanceSpotOrderBookSnapshot{
+        last_update_id: 0,
+        time_stamp: 0,
+        bids: vec![a,b],
+        asks: vec![a,b,d],
+    };
+
+    let order_e = BinanceSpotOrderBookSnapshot{
+        last_update_id: 0,
+        time_stamp: 0,
+        bids: vec![a,b,d],
+        asks: vec![a,b,d],
+    };
+    
+    assert!(order_a.if_contains(&order_b));
+
+    assert!(!order_a.if_contains(&order_c));
+
+    assert!(!order_a.if_contains(&order_d));
+
+    assert!(!order_a.if_contains(&order_e));
+    
 }

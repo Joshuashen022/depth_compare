@@ -90,9 +90,13 @@ fn read_and_compare()-> Result<()>{
         .map(|s|BinanceSpotOrderBookSnapshot::from_string(s.to_string()))
         .collect();
     let mut contains = false;
+    let mut satisfy_queue = Vec::new();
     for depth in depths{
         for depth_level in &depth_levels{
             let 结果 = depth.if_contains(depth_level);
+            let level_a_len = depth_level.asks.len();
+            let level_b_len = depth_level.bids.len();
+            let (different_bids, different_asks ) = depth.find_different(&depth_level);
 
             let depth_time = depth.time_stamp;
             let depth_id = depth.last_update_id;
@@ -101,15 +105,21 @@ fn read_and_compare()-> Result<()>{
             let dl_id = depth_level.last_update_id;
             // println!(" Depth {}-{} Depth Level {}-{} {}", depth_time, depth_id, dl_time ,dl_id , 结果);
 
-            println!("Time {} Id {} {}", depth_time - dl_time, depth_id - dl_id, 结果);
-
+            // println!("Time {} Id {} {}", depth_time - dl_time, depth_id - dl_id, 结果);
+            // println!("different bids {} asks {}", different_bids.len(), different_asks.len());
+            // println!("bids {} asks {}", level_b_len, level_a_len);
             if 结果 {
+                let result = format!(" Depth {}-{} Depth Level {}-{} {}", depth_time, depth_id, dl_time ,dl_id , 结果);
+                satisfy_queue.push(result);
                 contains = true;
             }
         }
     }
-
     println!("done {}", contains );
+    for res in satisfy_queue{
+        println!("done {}", res );
+    }
+
     Ok(())
 }
 
