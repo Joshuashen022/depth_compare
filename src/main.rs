@@ -17,7 +17,7 @@ use std::sync::Arc;
 async fn main() -> Result<()> {
 
     let order_book_depth = BinanceSpotOrderBook::new();
-    let order_book_level_depth = BinanceSpotOrderBook::new();
+    // let order_book_level_depth = BinanceSpotOrderBook::new();
 
     // Start depth order book
     match order_book_depth.depth(){
@@ -33,12 +33,13 @@ async fn main() -> Result<()> {
         println!();
         sleep(Duration::from_secs(1)).await;
         let depth = order_book_depth.get_snapshot().await;
-        let depth_level = order_book_level_depth.get_snapshot().await;
-        if depth_level.is_none() || depth.is_none(){
-            println!("{:?}", depth_level);
-            println!("{:?}", depth);
-            continue
-        }
+        println!("{:?}", depth);
+        // let depth_level = order_book_level_depth.get_snapshot().await;
+        // if depth_level.is_none() || depth.is_none(){
+        //     println!("{:?}", depth_level);
+        //     println!("{:?}", depth);
+        //     continue
+        // }
 
         // let depth = depth.unwrap();
         // let depth_level = depth_level.unwrap();
