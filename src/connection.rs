@@ -153,7 +153,7 @@ impl BinanceSpotOrderBook {
                                 let mut guard = buffer_clone2.lock().await;
                                 buffer.append(&mut (*guard));// TODO::not sure about time costing
                             }
-                            println!("Buffer2 len {}", buffer.len());
+                            // println!("Buffer2 len {}", buffer.len());
                             // Sleep for a while to collect event by another thread
                             sleep(Duration::from_millis(1000)).await;
 
