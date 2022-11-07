@@ -256,17 +256,24 @@ impl BinanceSpotOrderBook {
                 let mut reader = file.create(true).append(true).open(LEVEL_DEPTH_FILE).unwrap();
                 while let Ok(msg) = stream.next().await.unwrap(){ //
                     if !msg.is_text() {
+                        println!("text is none");
                         continue
                     }
 
                     let text = match msg.into_text(){
                         Ok(e) => e,
-                        Err(_) => continue,
+                        Err(e) => {
+                            println!("msg.into_text {}", e);
+                            continue
+                        },
                     };
 
                     let level_event: LevelEvent = match serde_json::from_str(&text){
                         Ok(e) => e,
-                        Err(_) => continue,
+                        Err(e) => {
+                            println!("serde_json {}", e);
+                            continue
+                        },
                     };
 
                     let time = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
