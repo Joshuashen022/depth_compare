@@ -350,7 +350,7 @@ impl Shared {
         let transformed = self.get_snapshot().transform_to_local();
 
         if let Ok(raw) = serde_json::to_string(&transformed){
-            Some(format!("{}\n", raw))
+            Some(format!("{}", raw))
         } else{
             // Unlikely happen
             None
