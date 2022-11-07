@@ -10,7 +10,7 @@ use tokio::time::{sleep, Duration};
 // use futures_util::StreamExt;
 use anyhow::Result;
 use tokio::sync::Mutex;
-use std::sync::Arc;
+use std::{sync::Arc, fmt::format};
 use crate::deep::BinanceSpotOrderBookSnapshot;
 // use tokio::spawn;
 
@@ -89,8 +89,10 @@ fn read_and_compare()-> Result<()>{
     let depth_levels:Vec<BinanceSpotOrderBookSnapshot> = buffer2.split("\n").collect::<Vec<_>>().iter()
         .map(|s|BinanceSpotOrderBookSnapshot::from_string(s.to_string()))
         .collect();
+    println!("depths {}, depth_levels {}", depths.len(), depth_levels.len());
     let mut contains = false;
     let mut satisfy_queue = Vec::new();
+    let mut counter = 0;
     for depth in depths{
         for depth_level in &depth_levels{
             let 结果 = depth.if_contains(depth_level);
@@ -112,6 +114,7 @@ fn read_and_compare()-> Result<()>{
                 let result = format!(" Depth {}-{} Depth Level {}-{} {}", depth_time, depth_id, dl_time ,dl_id , 结果);
                 satisfy_queue.push(result);
                 contains = true;
+                counter += 1;
             }
         }
     }
@@ -119,6 +122,88 @@ fn read_and_compare()-> Result<()>{
     for res in satisfy_queue{
         println!("done {}", res );
     }
+
+    println!("{}", counter);
+
+    Ok(())
+}
+
+
+
+#[test]
+fn read_and_compare2()-> Result<()>{
+
+    use std::fs::OpenOptions;
+    use std::io::Read;
+
+    let mut reader1 = OpenOptions::new()
+        .read(true).open("depth.cache")?;
+    let mut reader2 = OpenOptions::new()
+        .read(true).open("depth_level.cache")?;
+
+    let mut buffer1 = String::new();
+    let mut buffer2 = String::new();
+
+    reader1.read_to_string(&mut buffer1)?;
+    reader2.read_to_string(&mut buffer2)?;
+
+    buffer1.pop();
+    buffer2.pop();
+
+    let depths:Vec<BinanceSpotOrderBookSnapshot> = buffer1.split("\n").collect::<Vec<_>>().iter()
+        .map(|s|BinanceSpotOrderBookSnapshot::from_string(s.to_string()))
+        .collect();
+    let depth_levels:Vec<BinanceSpotOrderBookSnapshot> = buffer2.split("\n").collect::<Vec<_>>().iter()
+        .map(|s|BinanceSpotOrderBookSnapshot::from_string(s.to_string()))
+        .collect();
+    println!("depths {}, depth_levels {}", depths.len(), depth_levels.len());
+    let mut res_queue = Vec::new();
+    for depth_level in &depth_levels{
+        
+        let mut matchs_depths = Vec::new();
+        let mut differents_len = 200;
+        let mut different = Vec::new();
+        // let mut compare = false;
+        for depth in &depths{
+            let 结果 = depth.if_contains(depth_level);
+            // compare = 结果;
+            let depth_time = depth.time_stamp;
+            let depth_id = depth.last_update_id;
+            // println!(" Depth {}-{} Depth Level {}-{} {}", depth_time, depth_id, dl_time ,dl_id , 结果);
+
+            // println!("Time {} Id {} {}", depth_time - dl_time, depth_id - dl_id, 结果);
+            // println!("different bids {} asks {}", different_bids.len(), different_asks.len());
+            // println!("bids {} asks {}", level_b_len, level_a_len);
+            if 结果 {
+                matchs_depths.push(depth.clone());
+            } else {
+                let (bid, ask) = depth.find_different(depth_level);
+                if (bid.len() + ask.len()) < differents_len {
+                    differents_len = bid.len() + ask.len();
+                    different = vec![(bid, ask, depth_id, depth_time)];
+                }
+            }
+        }
+        let dl_time = depth_level.time_stamp;
+        let dl_id = depth_level.last_update_id;
+        let length = matchs_depths.len();
+        let mut res = format!("{} {} {} matches: ", dl_time, dl_id, matchs_depths.len());
+        for m in matchs_depths {
+            res += &format!("{} ", m.last_update_id);
+        }
+        if length == 0 {
+            for (bid, ask, depth_id, depth_time) in different {
+                res += &format!("depth_id {} depth_time {}, bid {}, ask {}", depth_id, depth_time, bid.len(), ask.len());
+            }
+        }
+
+        res_queue.push(res);
+    }
+
+    for r in res_queue {
+        println!("{}", r);
+    }
+    
 
     Ok(())
 }
