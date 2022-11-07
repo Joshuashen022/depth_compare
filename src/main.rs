@@ -9,7 +9,7 @@ use connection::{BinanceSpotOrderBook};
 use tokio::time::{sleep, Duration};
 // use futures_util::StreamExt;
 use anyhow::Result;
-use crate::deep::BinanceSpotOrderBookSnapshot;
+
 // use tokio::spawn;
 
 #[tokio::main]
@@ -57,7 +57,7 @@ async fn main() -> Result<()> {
 
     }
 
-    Ok(())
+    // Ok(())
 
 }
 
@@ -66,6 +66,7 @@ fn read_and_compare()-> Result<()>{
 
     use std::fs::OpenOptions;
     use std::io::Read;
+    use crate::deep::BinanceSpotOrderBookSnapshot;
 
     let mut reader1 = OpenOptions::new()
         .read(true).open("depth.cache")?;
@@ -133,11 +134,14 @@ fn read_and_compare2()-> Result<()>{
 
     use std::fs::OpenOptions;
     use std::io::Read;
-
+    use std::io::prelude::*;
+    use crate::deep::BinanceSpotOrderBookSnapshot;
     let mut reader1 = OpenOptions::new()
         .read(true).open("depth.cache")?;
     let mut reader2 = OpenOptions::new()
         .read(true).open("depth_level.cache")?;
+    let mut file = OpenOptions::new();
+    let mut reader = file.create(true).write(true).open("results").unwrap();
 
     let mut buffer1 = String::new();
     let mut buffer2 = String::new();
@@ -154,7 +158,10 @@ fn read_and_compare2()-> Result<()>{
     let depth_levels:Vec<BinanceSpotOrderBookSnapshot> = buffer2.split("\n").collect::<Vec<_>>().iter()
         .map(|s|BinanceSpotOrderBookSnapshot::from_string(s.to_string()))
         .collect();
-    println!("depths {}, depth_levels {}", depths.len(), depth_levels.len());
+    
+    let message = format!("depths {}, depth_levels {} \n", depths.len(), depth_levels.len());
+    reader.write_all(message.as_bytes()).unwrap_or(());
+
     let mut res_queue = Vec::new();
     for depth_level in &depth_levels{
         
@@ -197,9 +204,11 @@ fn read_and_compare2()-> Result<()>{
 
         res_queue.push(res);
     }
-
-    for r in res_queue {
-        println!("{}", r);
+    
+    for raw in res_queue {
+        let raw = format!("{}\n", raw);
+        reader.write_all(raw.as_bytes()).unwrap_or(());
+        
     }
     
 
