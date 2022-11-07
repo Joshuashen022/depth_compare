@@ -43,11 +43,11 @@ pub struct LevelEvent {
     pub last_update_id: i64,
 
     /// Difference in bids
-    #[serde(rename = "b")]
+    #[serde(rename = "bids")]
     pub bids: Vec<DepthRow>,
 
     /// Difference in asks
-    #[serde(rename = "a")]
+    #[serde(rename = "asks")]
     pub asks: Vec<DepthRow>,
 }
 
