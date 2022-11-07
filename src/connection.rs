@@ -185,7 +185,7 @@ impl BinanceSpotOrderBook {
                                     orderbook.add_event(event);
 
                                     if let Some(writable_data) = orderbook.writable(){
-                                        let raw = format!("{}\n", writable_data);
+                                        let raw = format!("{}", writable_data);
                                         reader.write_all(raw.as_bytes()).unwrap_or(());
                                     };
 
@@ -274,7 +274,7 @@ impl BinanceSpotOrderBook {
                         (*orderbook).set_level_event(level_event, time.as_millis() as i64);
 
                         if let Some(writable_data) = orderbook.writable(){
-                            let raw = format!("{}\n", writable_data);
+                            let raw = format!("{}", writable_data);
                             reader.write_all(raw.as_bytes()).unwrap_or(());
                         };
                     }
