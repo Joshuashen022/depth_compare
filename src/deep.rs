@@ -3,7 +3,7 @@ use std::fmt;
 // use std::sync::{Arc, RwLock};
 use serde::{de::Visitor, Deserialize, Deserializer, de::SeqAccess, Serialize, Serializer};
 use ordered_float::OrderedFloat;
-use anyhow::{Result, Error, anyhow};
+use anyhow::{Result, anyhow};
 use serde::ser::SerializeTuple;
 
 #[derive(Deserialize, Debug)]

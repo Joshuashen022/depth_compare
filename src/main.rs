@@ -9,8 +9,6 @@ use connection::{BinanceSpotOrderBook};
 use tokio::time::{sleep, Duration};
 // use futures_util::StreamExt;
 use anyhow::Result;
-use tokio::sync::Mutex;
-use std::{sync::Arc, fmt::format};
 use crate::deep::BinanceSpotOrderBookSnapshot;
 // use tokio::spawn;
 

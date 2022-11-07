@@ -5,16 +5,16 @@ use url::Url;
 use tokio::time::{sleep, Duration};
 use futures_util::StreamExt;
 use anyhow::{Result, Error};
-use anyhow::{bail, anyhow};
+use anyhow::anyhow;
 use tokio::sync::Mutex;
 // use tokio::select;
 use std::sync::{Arc, RwLock};
-use std::time::{Instant, SystemTime, UNIX_EPOCH};
-use futures_util::future::err;
+use std::time::{SystemTime, UNIX_EPOCH};
+
 
 use std::fs::OpenOptions;
 use std::io::prelude::*;
-use std::io::Read;
+
 
 const DEPTH_URL: &str = "wss://stream.binance.com:9443/ws/bnbbtc@depth@100ms";
 const LEVEL_DEPTH_URL: &str = "wss://stream.binance.com:9443/ws/bnbbtc@depth20@100ms";
@@ -184,7 +184,7 @@ impl BinanceSpotOrderBook {
                                     // println!("Update complete");
                                     orderbook.add_event(event);
 
-                                    if let Some(mut writable_data) = orderbook.writable(){
+                                    if let Some(writable_data) = orderbook.writable(){
                                         let raw = format!("{}\n", writable_data);
                                         reader.write_all(raw.as_bytes()).unwrap_or(());
                                     };
@@ -273,7 +273,7 @@ impl BinanceSpotOrderBook {
                     if let Ok(mut orderbook) = shared.write(){
                         (*orderbook).set_level_event(level_event, time.as_millis() as i64);
 
-                        if let Some(mut writable_data) = orderbook.writable(){
+                        if let Some(writable_data) = orderbook.writable(){
                             let raw = format!("{}\n", writable_data);
                             reader.write_all(raw.as_bytes()).unwrap_or(());
                         };
