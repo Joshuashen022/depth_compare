@@ -1,3 +1,4 @@
+use std::collections::btree_map::BTreeMap;
 use std::collections::BTreeMap;
 use std::fmt;
 // use std::sync::{Arc, RwLock};
@@ -41,8 +42,12 @@ pub struct LevelEvent {
     #[serde(rename = "lastUpdateId")]
     pub last_update_id: i64,
 
+    /// Difference in bids
+    #[serde(rename = "b")]
     pub bids: Vec<DepthRow>,
 
+    /// Difference in asks
+    #[serde(rename = "a")]
     pub asks: Vec<DepthRow>,
 }
 
