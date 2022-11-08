@@ -148,7 +148,7 @@ impl BinanceSpotOrderBook {
                                 orderbook.add_event(event);
 
                                 overbook_setup = true;
-
+                                println!(" Found match snapshot 3");
                                 break;
                             }
 
