@@ -3,7 +3,11 @@ use crate::deep::{LevelEvent, Event, BinanceSpotOrderBookSnapshot, Shared, Binan
 use tokio_tungstenite::{connect_async, tungstenite};
 use tungstenite::Message;
 use url::Url;
-use tokio::time::{sleep, Duration};
+use tokio::{
+    time::{sleep, Duration},
+    sync::mpsc::{self, UnboundedReceiver},
+};
+
 use futures_util::StreamExt;
 use anyhow::{Result, Error};
 use anyhow::{bail, anyhow};
@@ -17,7 +21,7 @@ use tracing::{error, info, trace};
 const DEPTH_URL: &str = "wss://stream.binance.com:9443/ws/bnbbtc@depth@100ms";
 const LEVEL_DEPTH_URL: &str = "wss://stream.binance.com:9443/ws/bnbbtc@depth20@100ms";
 const REST: &str = "https://api.binance.com/api/v3/depth?symbol=BNBBTC&limit=1000";
-const MAX_BUFFER: usize = 30;
+// const MAX_CHANNEL_SIZE: usize = 30;
 const MAX_BUFFER_EVENTS: usize = 5;
 
 pub struct BinanceSpotOrderBook {
@@ -35,9 +39,10 @@ impl BinanceSpotOrderBook {
     }
 
     /// acquire a order book with "depth method"
-    pub fn depth(&self) -> Result<()> {
+    pub fn depth(&self) -> Result<UnboundedReceiver<BinanceSpotOrderBookSnapshot>> {
         let shared = self.shared.clone();
         let status = self.status.clone();
+        let (sender, receiver) = mpsc::unbounded_channel();
         // Thread to maintain Order Book
         let _ = tokio::spawn(async move{
             let mut default_exit = 0;
@@ -192,13 +197,20 @@ impl BinanceSpotOrderBook {
                             error!("All event is not usable, need a new snap shot ");
                             error!("order book {}, Event {}-{}",
                                      orderbook.id(), event.first_update_id, event.last_update_id);
-
                             break;
+
                         } else if event.first_update_id == orderbook.id() + 1 {
                             let f_id = event.first_update_id;
                             let l_id = event.last_update_id;
                             orderbook.add_event(event);
-                            println!("After add event {}, {} {}", orderbook.id(), f_id, l_id);
+
+                            trace!("After add event {}, {} {}", orderbook.id(), f_id, l_id);
+
+                            let snapshot = orderbook.get_snapshot();
+                            if let Err(e) = sender.send(snapshot){
+                                error!("Send Snapshot error, {:?}", e);
+                            };
+
                         }
 
                     }
@@ -221,7 +233,7 @@ impl BinanceSpotOrderBook {
             Ok::<(), Error>(())
         });
 
-        Ok(())
+        Ok(receiver)
     }
 
     pub fn level_depth(&self) {

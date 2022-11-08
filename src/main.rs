@@ -19,11 +19,13 @@ async fn main() -> Result<()> {
     let order_book_depth = BinanceSpotOrderBook::new();
     let order_book_level_depth = BinanceSpotOrderBook::new();
 
+    let mut rx = order_book_depth.depth().unwrap();
+    tokio::spawn(async move {
+        while let Some(message) = rx.recv().await{
+            println!("receive {}", message.last_update_id);
+        }
+    });
     // Start depth order book
-    match order_book_depth.depth(){
-        Ok(_) => (),
-        Err(e) => println!("{}",e),
-    };
 
     // Start depth level order book
     order_book_level_depth.level_depth();
