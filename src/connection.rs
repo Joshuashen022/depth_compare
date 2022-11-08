@@ -12,7 +12,7 @@ use tokio::sync::Mutex;
 use std::sync::{Arc, RwLock};
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
 use futures_util::future::err;
-// use tokio::spawn;
+use tracing::{error, info, trace};
 
 const DEPTH_URL: &str = "wss://stream.binance.com:9443/ws/bnbbtc@depth@100ms";
 const LEVEL_DEPTH_URL: &str = "wss://stream.binance.com:9443/ws/bnbbtc@depth20@100ms";
@@ -41,7 +41,7 @@ impl BinanceSpotOrderBook {
         // Thread to maintain Order Book
         let _ = tokio::spawn(async move{
             let mut default_exit = 0;
-            println!("Start OrderBook thread");
+            info!("Start OrderBook thread");
             loop {
                 let res : Result<()> = {
                     {
@@ -56,7 +56,7 @@ impl BinanceSpotOrderBook {
                         Ok((stream, _)) => stream,
                         Err(e) => {
                             default_exit += 1;
-                            println!("Error calling {}, {:?}",DEPTH_URL, e);
+                            error!("Error calling {}, {:?}",DEPTH_URL, e);
                             continue
                         },
                     };
@@ -77,24 +77,24 @@ impl BinanceSpotOrderBook {
                     };
 
                     // Wait for a while to collect event into buffer
-                    println!("Calling Https://");
+                    trace!("Calling Https://");
                     let snapshot: BinanceSnapshot = reqwest::get(REST)
                         .await?
                         .json()
                         .await?;
-                    println!("Done Calling Https://");
+                    trace!("Done Calling Https://");
 
-                    println!("Snap shot {}", snapshot.last_update_id); // 2861806778
+                    trace!("Snap shot {}", snapshot.last_update_id); // 2861806778
                     let mut overbook_setup = false;
                     while let Some(event) = buffer_events.pop_front() {
-                        println!(" Event {}-{}", event.first_update_id, event.last_update_id);
+                        trace!(" Event {}-{}", event.first_update_id, event.last_update_id);
 
                         if snapshot.last_update_id >= event.last_update_id  {
                             continue
                         }
 
                         if event.match_snapshot(snapshot.last_update_id) {
-                            println!(" Found match snapshot 1");
+                            info!(" Found match snapshot 1");
                             let mut orderbook = shared.write().unwrap();
                             orderbook.load_snapshot(&snapshot);
                             orderbook.add_event(event);
@@ -107,21 +107,22 @@ impl BinanceSpotOrderBook {
                         }
 
                         if event.first_update_id > snapshot.last_update_id + 1 {
-                            println!("Rest event is not usable, need a new snap shot ");
-                            println!();
+                            error!("Rest event is not usable, need a new snap shot ");
+
                             break;
                         }
 
                     }
 
                     if overbook_setup {
-                        println!("Cleaning buffer");
+
                         while let Some(event) = buffer_events.pop_front()  {
                             let mut orderbook = shared.write().unwrap();
                             orderbook.add_event(event);
                         }
+
                     } else {
-                        println!("wait for a suitable message");
+
                         while let Ok(message) = stream.next().await.unwrap() {
 
                             let event = deserialize_message(message);
@@ -131,18 +132,17 @@ impl BinanceSpotOrderBook {
                             let event = event.unwrap();
 
 
-                            println!(" Event {}-{}", event.first_update_id, event.last_update_id);
+                            trace!(" Event {}-{}", event.first_update_id, event.last_update_id);
 
                             // [E.U,..,E.u] S.u
                             if snapshot.last_update_id >= event.last_update_id  {
-                                println!("snapshot.last_update_id >= event.last_update_id");
                                 continue
                             }
 
                             let mut orderbook = shared.write().unwrap();
                             // [E.U,..,S.u,..,E.u]
                             if event.match_snapshot(snapshot.last_update_id) {
-                                println!(" Found match snapshot 2");
+                                info!(" Found match snapshot 2");
 
                                 orderbook.load_snapshot(&snapshot);
                                 orderbook.add_event(event);
@@ -153,25 +153,20 @@ impl BinanceSpotOrderBook {
 
                             // S.u [E.U,..,E.u]
                             if event.first_update_id > snapshot.last_update_id + 1 {
-                                println!("Rest event is not usable, need a new snap shot ");
-                                println!();
+                                error!("Rest event is not usable, need a new snap shot ");
+
                                 break;
                             }
 
                             if event.first_update_id > orderbook.id() + 1 {
-                                println!("All event is not usable, need a new snap shot ");
-                                println!("order book {}, Event {}-{}",
+                                error!("All event is not usable, need a new snap shot ");
+                                error!("order book {}, Event {}-{}",
                                          orderbook.id(), event.first_update_id, event.last_update_id);
 
                                 break;
                             }
-                            // else if event.first_update_id == orderbook.id() + 1 {
-                            //     // println!("Update complete");
-                            //     orderbook.add_event(event)
-                            // }
-
                         }
-                        println!("wait for a suitable message Done");
+
                     }
 
 
@@ -183,7 +178,7 @@ impl BinanceSpotOrderBook {
                         continue
                     }
 
-                    println!(" Overbook initialize success, now keep listening ");
+                    info!(" Overbook initialize success, now keep listening ");
                     // Overbook initialize success
                     while let Ok(message) = stream.next().await.unwrap() {
                         let event = deserialize_message(message);
@@ -194,14 +189,16 @@ impl BinanceSpotOrderBook {
 
                         let mut orderbook = shared.write().unwrap();
                         if event.first_update_id > orderbook.id() + 1 {
-                            println!("All event is not usable, need a new snap shot ");
-                            println!("order book {}, Event {}-{}",
+                            error!("All event is not usable, need a new snap shot ");
+                            error!("order book {}, Event {}-{}",
                                      orderbook.id(), event.first_update_id, event.last_update_id);
 
                             break;
                         } else if event.first_update_id == orderbook.id() + 1 {
-                            // println!("Update complete");
-                            orderbook.add_event(event)
+                            let f_id = event.first_update_id;
+                            let l_id = event.last_update_id;
+                            orderbook.add_event(event);
+                            println!("After add event {}, {} {}", orderbook.id(), f_id, l_id);
                         }
 
                     }
@@ -211,11 +208,11 @@ impl BinanceSpotOrderBook {
 
                 match res {
                     Ok(_) => (),
-                    Err(e) => println!("Error happen when running code: {:?}", e),
+                    Err(e) => error!("Error happen when running code: {:?}", e),
                 }
 
                 if default_exit > 20 {
-                    println!("Using default break");
+                    error!("Using default break");
                     break
                 }
 
