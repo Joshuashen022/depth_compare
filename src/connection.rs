@@ -1,6 +1,7 @@
 use std::collections::VecDeque;
 use crate::deep::{LevelEvent, Event, BinanceSpotOrderBookSnapshot, Shared, BinanceSnapshot};
-use tokio_tungstenite::connect_async;
+use tokio_tungstenite::{connect_async, tungstenite};
+use tungstenite::Message;
 use url::Url;
 use tokio::time::{sleep, Duration};
 use futures_util::StreamExt;
@@ -17,6 +18,7 @@ const DEPTH_URL: &str = "wss://stream.binance.com:9443/ws/bnbbtc@depth@100ms";
 const LEVEL_DEPTH_URL: &str = "wss://stream.binance.com:9443/ws/bnbbtc@depth20@100ms";
 const REST: &str = "https://api.binance.com/api/v3/depth?symbol=BNBBTC&limit=1000";
 const MAX_BUFFER: usize = 30;
+const MAX_BUFFER_EVENTS: usize = 5;
 
 pub struct BinanceSpotOrderBook {
     status: Arc<Mutex<bool>>,
@@ -51,21 +53,12 @@ impl BinanceSpotOrderBook {
                     Err(e) => return anyhow!("{:?}", e),
                 };
 
-                while let Ok(msg) = stream.next().await.unwrap(){ //
-                    if !msg.is_text() {
+                while let Ok(message) = stream.next().await.unwrap(){ //
+                    let event = deserialize_message(message);
+                    if event.is_none(){
                         continue
                     }
-
-                    let text = match msg.into_text(){
-                        Ok(e) => e,
-                        Err(_) => continue,
-                    };
-
-                    let event: Event = match serde_json::from_str(&text){
-                        Ok(e) => e,
-                        Err(_) => continue,
-                    };
-
+                    let event = event.unwrap();
                     let mut guard = buffer_clone1.lock().await;
 
                     if (*guard).len() == MAX_BUFFER {
@@ -80,7 +73,7 @@ impl BinanceSpotOrderBook {
 
         // Thread to maintain Order Book
         let buffer_clone2 = buffer.clone();
-        tokio::spawn(async move{
+        let _ = tokio::spawn(async move{
             let mut default_exit = 0;
             println!("Start OrderBook thread");
             loop {
@@ -89,33 +82,48 @@ impl BinanceSpotOrderBook {
                         let mut guard = status.lock().await;
                         (*guard) = false;
                     }
-                    // println!("Dropped the status.lock");
+
+                    let url = Url::parse(DEPTH_URL).expect("Bad URL");
+
+                    let res = connect_async(url).await;
+                    let mut stream = match res{
+                        Ok((stream, _)) => stream,
+                        Err(e) => {
+                            default_exit += 1;
+                            println!("Error calling {}, {:?}",DEPTH_URL, e);
+                            continue
+                        },
+                    };
+
+                    let mut buffer_events = VecDeque::new();
+                    while let Ok(message) = stream.next().await.unwrap(){ //
+                        let event = deserialize_message(message);
+                        if event.is_none(){
+                            continue
+                        }
+                        let event = event.unwrap();
+
+                        buffer_events.push_back(event);
+
+                        if buffer_events.len() == MAX_BUFFER_EVENTS{
+                            break
+                        }
+                    };
+
                     // Wait for a while to collect event into buffer
-                    sleep(Duration::from_millis(1000)).await;
-                    // println!("Calling Https://");
+                    println!("Calling Https://");
                     let snapshot: BinanceSnapshot = reqwest::get(REST)
                         .await?
                         .json()
                         .await?;
-                    // println!("Done Calling Https://");
-                    sleep(Duration::from_millis(500)).await;
-                    let mut buffer = VecDeque::<Event>::new();
-                    // println!("Acquiring buffer_clone2 lock");
-                    {
-                        let mut guard = buffer_clone2.lock().await;
-                       buffer.append(&mut (*guard));
-                    }
-                    // println!("Dropped buffer_clone2 lock");
+                    println!("Done Calling Https://");
 
-                    println!("Buffer len {}", buffer.len());
                     println!("Snap shot {}", snapshot.last_update_id); // 2861806778
                     let mut overbook_setup = false;
-                    while let Some(event) = buffer.pop_front() {
+                    while let Some(event) = buffer_events.pop_front() {
                         println!(" Event {}-{}", event.first_update_id, event.last_update_id);
-                        // Event 2861806779-2861806780
 
                         if snapshot.last_update_id >= event.last_update_id  {
-                            // step 4
                             continue
                         }
 
@@ -148,47 +156,27 @@ impl BinanceSpotOrderBook {
                     if overbook_setup {
                         // Overbook initialize success
 
-                        loop {
-                            {
-                                let mut guard = buffer_clone2.lock().await;
-                                buffer.append(&mut (*guard));// TODO::not sure about time costing
+                        // Acquire guard <orderbook>
+
+                        while let Ok(message) = stream.next().await.unwrap() {
+                            let event = deserialize_message(message);
+                            if event.is_none(){
+                                continue
                             }
-                            // println!("Buffer2 len {}", buffer.len());
-                            // Sleep for a while to collect event by another thread
-                            sleep(Duration::from_millis(1000)).await;
+                            let event = event.unwrap();
 
-                            // let instance = Instant::now();
-                            // let buffer_len = buffer.len();
-                            let mut need_new_snap_snot = false;
-
-                            // Acquire guard <orderbook>
                             let mut orderbook = shared.write().unwrap();
-
-
-                            while let Some(event) = buffer.pop_front() {
-
-                                if event.first_update_id > orderbook.id() + 1 {
-                                    println!("All event is not usable, need a new snap shot ");
-                                    println!("order book {}, Event {}-{}",
-                                             orderbook.id(), event.first_update_id, event.last_update_id);
-                                    need_new_snap_snot = true;
-                                    break;
-                                } else if event.first_update_id == orderbook.id() + 1 {
-                                    // println!("Update complete");
-                                    orderbook.add_event(event)
-                                } else {
-                                    continue
-                                }
-
-                            }
-
-                            if need_new_snap_snot {
+                            if event.first_update_id > orderbook.id() + 1 {
+                                println!("All event is not usable, need a new snap shot ");
+                                println!("order book {}, Event {}-{}",
+                                         orderbook.id(), event.first_update_id, event.last_update_id);
 
                                 break;
+                            } else if event.first_update_id == orderbook.id() + 1 {
+                                // println!("Update complete");
+                                orderbook.add_event(event)
                             }
 
-                            // println!("deal {} Event used {}ms", buffer_len, instance.elapsed().as_millis());
-                            // This step cost less than 1ms
                         }
                     }
 
@@ -287,6 +275,22 @@ impl BinanceSpotOrderBook {
     }
 }
 
+fn deserialize_message(message: Message) -> Option<Event>{
+    if !message.is_text() {
+        return None
+    }
 
+    let text = match message.into_text(){
+        Ok(e) => e,
+        Err(_) => return None,
+    };
+
+    let event: Event = match serde_json::from_str(&text){
+        Ok(e) => e,
+        Err(_) => return None,
+    };
+
+    Some(event)
+}
 
 
