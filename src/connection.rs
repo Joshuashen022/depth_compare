@@ -94,7 +94,7 @@ impl BinanceSpotOrderBook {
                         }
 
                         if event.match_snapshot(snapshot.last_update_id) {
-                            println!(" Found match snapshot ");
+                            println!(" Found match snapshot 1");
                             let mut orderbook = shared.write().unwrap();
                             orderbook.load_snapshot(&snapshot);
                             orderbook.add_event(event);
@@ -135,13 +135,14 @@ impl BinanceSpotOrderBook {
 
                             // [E.U,..,E.u] S.u
                             if snapshot.last_update_id >= event.last_update_id  {
+                                println!("snapshot.last_update_id >= event.last_update_id");
                                 continue
                             }
 
                             let mut orderbook = shared.write().unwrap();
                             // [E.U,..,S.u,..,E.u]
                             if event.match_snapshot(snapshot.last_update_id) {
-                                println!(" Found match snapshot ");
+                                println!(" Found match snapshot 2");
                                 let mut orderbook = shared.write().unwrap();
                                 orderbook.load_snapshot(&snapshot);
                                 orderbook.add_event(event);
