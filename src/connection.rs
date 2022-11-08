@@ -38,41 +38,7 @@ impl BinanceSpotOrderBook {
     pub fn depth(&self) -> Result<()> {
         let shared = self.shared.clone();
         let status = self.status.clone();
-        let buffer = Arc::new(Mutex::new(VecDeque::<Event>::new()));
-
-        // Thread to maintain buffer from stream
-        let buffer_clone1 = buffer.clone();
-        tokio::spawn(async move {
-            println!("Start buffer maintain thread");
-            loop{
-                let url = Url::parse(DEPTH_URL).expect("Bad URL");
-
-                let res = connect_async(url).await;
-                let mut stream = match res{
-                    Ok((stream, _)) => stream,
-                    Err(e) => return anyhow!("{:?}", e),
-                };
-
-                while let Ok(message) = stream.next().await.unwrap(){ //
-                    let event = deserialize_message(message);
-                    if event.is_none(){
-                        continue
-                    }
-                    let event = event.unwrap();
-                    let mut guard = buffer_clone1.lock().await;
-
-                    if (*guard).len() == MAX_BUFFER {
-                        let _ = (*guard).pop_front();
-                        (*guard).push_back(event);
-                    } else {
-                        (*guard).push_back(event);
-                    }
-                };
-            }
-        });
-
         // Thread to maintain Order Book
-        let buffer_clone2 = buffer.clone();
         let _ = tokio::spawn(async move{
             let mut default_exit = 0;
             println!("Start OrderBook thread");
