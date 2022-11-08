@@ -1,5 +1,9 @@
 use std::collections::VecDeque;
-use crate::deep::{LevelEvent, Event, BinanceSpotOrderBookSnapshot, Shared, BinanceSnapshot};
+use crate::data_formalization::{
+    LevelEventSpot, EventSpot,
+    BinanceSpotOrderBookSnapshot, SharedSpot,
+    BinanceSnapshotSpot
+};
 use tokio_tungstenite::{connect_async, tungstenite};
 use tungstenite::Message;
 use url::Url;
@@ -24,17 +28,17 @@ const REST: &str = "https://api.binance.com/api/v3/depth?symbol=BNBBTC&limit=100
 // const MAX_CHANNEL_SIZE: usize = 30;
 const MAX_BUFFER_EVENTS: usize = 5;
 
-pub struct BinanceSpotOrderBook {
+pub struct BinanceSpotOrderBookSpot {
     status: Arc<Mutex<bool>>,
-    shared: Arc<RwLock<Shared>>,
+    shared: Arc<RwLock<SharedSpot>>,
 }
 
-impl BinanceSpotOrderBook {
+impl BinanceSpotOrderBookSpot {
 
     pub fn new() -> Self {
-        BinanceSpotOrderBook {
+        BinanceSpotOrderBookSpot {
             status: Arc::new(Mutex::new(false)),
-            shared: Arc::new(RwLock::new(Shared::new()))
+            shared: Arc::new(RwLock::new(SharedSpot::new()))
         }
     }
 
@@ -83,7 +87,7 @@ impl BinanceSpotOrderBook {
 
                     // Wait for a while to collect event into buffer
                     trace!("Calling Https://");
-                    let snapshot: BinanceSnapshot = reqwest::get(REST)
+                    let snapshot: BinanceSnapshotSpot = reqwest::get(REST)
                         .await?
                         .json()
                         .await?;
@@ -272,7 +276,7 @@ impl BinanceSpotOrderBook {
                         Err(_) => continue,
                     };
 
-                    let level_event: LevelEvent = match serde_json::from_str(&text){
+                    let level_event: LevelEventSpot = match serde_json::from_str(&text){
                         Ok(e) => e,
                         Err(_) => continue,
                     };
@@ -315,7 +319,7 @@ impl BinanceSpotOrderBook {
     }
 }
 
-fn deserialize_message(message: Message) -> Option<Event>{
+fn deserialize_message(message: Message) -> Option<EventSpot>{
     if !message.is_text() {
         return None
     }
@@ -325,7 +329,7 @@ fn deserialize_message(message: Message) -> Option<Event>{
         Err(_) => return None,
     };
 
-    let event: Event = match serde_json::from_str(&text){
+    let event: EventSpot = match serde_json::from_str(&text){
         Ok(e) => e,
         Err(_) => return None,
     };

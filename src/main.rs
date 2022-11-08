@@ -1,7 +1,7 @@
-pub mod deep;
+pub mod data_formalization;
 mod connection;
 
-use connection::{BinanceSpotOrderBook};
+use connection::{BinanceSpotOrderBookSpot};
 // use deep::Event;
 // use tokio_tungstenite::connect_async;
 // use url::Url;
@@ -16,8 +16,8 @@ use std::sync::Arc;
 #[tokio::main]
 async fn main() -> Result<()> {
 
-    let order_book_depth = BinanceSpotOrderBook::new();
-    let order_book_level_depth = BinanceSpotOrderBook::new();
+    let order_book_depth = BinanceSpotOrderBookSpot::new();
+    let order_book_level_depth = BinanceSpotOrderBookSpot::new();
 
     // Start depth order book
     let mut rx1 = order_book_depth.depth().unwrap();

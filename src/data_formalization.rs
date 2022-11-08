@@ -6,7 +6,7 @@ use ordered_float::OrderedFloat;
 use anyhow::{Result, Error, anyhow};
 
 #[derive(Deserialize, Debug)]
-pub struct Event {
+pub struct EventSpot {
     #[serde(rename = "e")]
     pub ttype: String,
     #[serde(rename = "E")]
@@ -23,7 +23,7 @@ pub struct Event {
     pub asks: Vec<DepthRow>,
 }
 
-impl Event {
+impl EventSpot {
     pub fn match_seq_num(&self, expected_id: &i64) -> bool {
         self.first_update_id == *expected_id
     }
@@ -37,7 +37,7 @@ impl Event {
 }
 
 #[derive(Deserialize, Debug)]
-pub struct LevelEvent {
+pub struct LevelEventSpot {
     #[serde(rename = "lastUpdateId")]
     pub last_update_id: i64,
 
@@ -107,7 +107,7 @@ impl<'de> Visitor<'de> for DepthRowVisitor {
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct BinanceSnapshot {
+pub struct BinanceSnapshotSpot {
     pub last_update_id: i64,
     pub bids: Vec<DepthRow>,
     pub asks: Vec<DepthRow>,
@@ -165,16 +165,16 @@ impl BinanceSpotOrderBookSnapshot{
     }
 }
 
-pub struct Shared {
+pub struct SharedSpot {
     last_update_id: i64,
     time_stamp: i64,
     asks: BTreeMap<OrderedFloat<f64>, f64>,
     bids: BTreeMap<OrderedFloat<f64>, f64>,
 }
 
-impl Shared {
+impl SharedSpot {
     pub fn new() -> Self {
-        Shared {
+        SharedSpot {
             last_update_id: 0,
             time_stamp: 0,
             asks: BTreeMap::new(),
@@ -187,7 +187,7 @@ impl Shared {
         self.last_update_id
     }
 
-    pub fn load_snapshot(&mut self, snapshot: &BinanceSnapshot) {
+    pub fn load_snapshot(&mut self, snapshot: &BinanceSnapshotSpot) {
         self.asks.clear();
         for ask in &snapshot.asks {
             self.asks.insert(OrderedFloat(ask.price), ask.amount);
@@ -202,7 +202,7 @@ impl Shared {
     }
 
     /// Only used for "Event"
-    pub fn add_event(&mut self, event: Event) {
+    pub fn add_event(&mut self, event: EventSpot) {
         for ask in event.asks {
             if ask.amount == 0.0 {
                 self.asks.remove(&OrderedFloat(ask.price));
@@ -224,7 +224,7 @@ impl Shared {
     }
 
     /// Only used for "LevelEvent"
-    pub fn set_level_event(&mut self, level_event: LevelEvent, time_stamp: i64){
+    pub fn set_level_event(&mut self, level_event: LevelEventSpot, time_stamp: i64){
         for ask in level_event.asks {
             if ask.amount == 0.0 {
                 self.asks.remove(&OrderedFloat(ask.price));
@@ -267,7 +267,7 @@ impl Shared {
 
     /// With give event to update snapshot,
     /// if event doesn't satisfy return error
-    pub fn update_snapshot(&mut self, event: Event)-> Result<()>  {
+    pub fn update_snapshot(&mut self, event: EventSpot) -> Result<()>  {
         if event.first_update_id != self.last_update_id + 1 {
             Err(anyhow!(
                 "Expect event u to be {}, found {}",
