@@ -107,8 +107,6 @@ impl BinanceSpotOrderBook {
                             overbook_setup = true;
 
                             break;
-                        } else {
-                            // println!(" No match ");
                         }
 
                         if event.first_update_id > snapshot.last_update_id + 1 {
@@ -236,15 +234,15 @@ impl BinanceSpotOrderBook {
         Ok(receiver)
     }
 
-    pub fn level_depth(&self) {
+    pub fn level_depth(&self) -> Result<UnboundedReceiver<BinanceSpotOrderBookSnapshot>>{
         let shared = self.shared.clone();
 
         // This is not actually used
         let status = self.status.clone();
-
+        let (sender, receiver) = mpsc::unbounded_channel();
 
         let _ = tokio::spawn(async move {
-            println!("Start Level Buffer maintain thread");
+            info!("Start Level Buffer maintain thread");
             loop{
                 let url = Url::parse(LEVEL_DEPTH_URL).expect("Bad URL");
 
@@ -252,7 +250,7 @@ impl BinanceSpotOrderBook {
                 let mut stream = match res{
                     Ok((stream, _)) => stream,
                     Err(e) => {
-                        println!("Error {:?}, reconnecting {}", e, LEVEL_DEPTH_URL);
+                        error!("Error {:?}, reconnecting {}", e, LEVEL_DEPTH_URL);
                         continue
                     },
                 };
@@ -282,15 +280,22 @@ impl BinanceSpotOrderBook {
                     let time = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
                     if let Ok(mut guard) = shared.write(){
                         (*guard).set_level_event(level_event, time.as_millis() as i64);
+
+                        let snapshot = (*guard).get_snapshot();
+                        if let Err(e) = sender.send(snapshot){
+                            error!("Send Snapshot error, {:?}", e);
+                        };
                     }
                 };
             }
 
         });
+
+        Ok(receiver)
     }
 
     /// Get the snapshot of the current Order Book
-    pub async fn get_snapshot(&self) -> Option<BinanceSpotOrderBookSnapshot>{
+    pub async fn snapshot(&self) -> Option<BinanceSpotOrderBookSnapshot>{
         let mut current_status = false;
 
         {
