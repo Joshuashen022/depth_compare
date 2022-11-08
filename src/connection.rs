@@ -143,12 +143,11 @@ impl BinanceSpotOrderBook {
                             // [E.U,..,S.u,..,E.u]
                             if event.match_snapshot(snapshot.last_update_id) {
                                 println!(" Found match snapshot 2");
-                                let mut orderbook = shared.write().unwrap();
+
                                 orderbook.load_snapshot(&snapshot);
                                 orderbook.add_event(event);
 
                                 overbook_setup = true;
-                                println!(" Found match snapshot 3");
                                 break;
                             }
 
