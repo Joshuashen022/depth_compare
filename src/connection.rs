@@ -115,23 +115,49 @@ impl BinanceSpotOrderBook {
                     }
 
                     if overbook_setup {
-                        let mut guard = status.lock().await;
-                        (*guard) = true;
-                    }
-
-                    if overbook_setup {
-                        // Overbook initialize success
-
-                        // Acquire guard <orderbook>
-
+                        while let Some(event) = buffer_events.pop_front()  {
+                            let mut orderbook = shared.write().unwrap();
+                            orderbook.add_event(event);
+                        }
+                    } else {
                         while let Ok(message) = stream.next().await.unwrap() {
+
                             let event = deserialize_message(message);
                             if event.is_none(){
                                 continue
                             }
                             let event = event.unwrap();
 
+
+                            println!(" Event {}-{}", event.first_update_id, event.last_update_id);
+
+                            // [E.U,..,E.u] S.u
+                            if snapshot.last_update_id >= event.last_update_id  {
+                                continue
+                            }
+
                             let mut orderbook = shared.write().unwrap();
+                            // [E.U,..,S.u,..,E.u]
+                            if event.match_snapshot(snapshot.last_update_id) {
+                                println!(" Found match snapshot ");
+                                let mut orderbook = shared.write().unwrap();
+                                orderbook.load_snapshot(&snapshot);
+                                orderbook.add_event(event);
+
+                                overbook_setup = true;
+
+                                break;
+                            } else {
+                                // println!(" No match ");
+                            }
+
+                            // S.u [E.U,..,E.u]
+                            if event.first_update_id > snapshot.last_update_id + 1 {
+                                println!("Rest event is not usable, need a new snap shot ");
+                                println!();
+                                break;
+                            }
+
                             if event.first_update_id > orderbook.id() + 1 {
                                 println!("All event is not usable, need a new snap shot ");
                                 println!("order book {}, Event {}-{}",
@@ -144,6 +170,38 @@ impl BinanceSpotOrderBook {
                             }
 
                         }
+                    }
+
+
+                    if overbook_setup {
+                        let mut guard = status.lock().await;
+                        (*guard) = true;
+                    } else {
+
+                        continue
+                    }
+                    
+                    println!(" Overbook initialize success, now keep listening ");
+                    // Overbook initialize success
+                    while let Ok(message) = stream.next().await.unwrap() {
+                        let event = deserialize_message(message);
+                        if event.is_none(){
+                            continue
+                        }
+                        let event = event.unwrap();
+
+                        let mut orderbook = shared.write().unwrap();
+                        if event.first_update_id > orderbook.id() + 1 {
+                            println!("All event is not usable, need a new snap shot ");
+                            println!("order book {}, Event {}-{}",
+                                     orderbook.id(), event.first_update_id, event.last_update_id);
+
+                            break;
+                        } else if event.first_update_id == orderbook.id() + 1 {
+                            // println!("Update complete");
+                            orderbook.add_event(event)
+                        }
+
                     }
 
                     Ok(())
