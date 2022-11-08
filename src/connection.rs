@@ -149,8 +149,6 @@ impl BinanceSpotOrderBook {
                                 overbook_setup = true;
 
                                 break;
-                            } else {
-                                // println!(" No match ");
                             }
 
                             // S.u [E.U,..,E.u]
@@ -173,6 +171,7 @@ impl BinanceSpotOrderBook {
                             // }
 
                         }
+                        println!("wait for a suitable message Done");
                     }
 
 
