@@ -166,10 +166,11 @@ impl BinanceSpotOrderBook {
                                          orderbook.id(), event.first_update_id, event.last_update_id);
 
                                 break;
-                            } else if event.first_update_id == orderbook.id() + 1 {
-                                // println!("Update complete");
-                                orderbook.add_event(event)
                             }
+                            // else if event.first_update_id == orderbook.id() + 1 {
+                            //     // println!("Update complete");
+                            //     orderbook.add_event(event)
+                            // }
 
                         }
                     }
