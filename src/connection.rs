@@ -115,11 +115,13 @@ impl BinanceSpotOrderBook {
                     }
 
                     if overbook_setup {
+                        println!("Cleaning buffer");
                         while let Some(event) = buffer_events.pop_front()  {
                             let mut orderbook = shared.write().unwrap();
                             orderbook.add_event(event);
                         }
                     } else {
+                        println!("wait for a suitable message");
                         while let Ok(message) = stream.next().await.unwrap() {
 
                             let event = deserialize_message(message);
@@ -180,7 +182,7 @@ impl BinanceSpotOrderBook {
 
                         continue
                     }
-                    
+
                     println!(" Overbook initialize success, now keep listening ");
                     // Overbook initialize success
                     while let Ok(message) = stream.next().await.unwrap() {
